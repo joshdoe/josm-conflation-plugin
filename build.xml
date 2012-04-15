@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="josm-conflation-plugin" default="dist" basedir=".">
-	
+
+    <property name="ant.build.javac.target" value="1.6"/>
+    <property name="ant.build.javac.source" value="1.6"/>
+
     <property name="plugin.build.dir" value="build" />
     <property name="plugin.src.dir" value="src" />
     <property name="plugin.dist.dir" value="dist" />
@@ -67,7 +70,8 @@
                 <attribute name="Plugin-Icon" value="images/conflation.png"/>
                 <attribute name="Plugin-Link" value="http://wiki.openstreetmap.org/wiki/JOSM/Plugins/Conflation" />
                 <attribute name="Plugin-Mainversion" value="${josm.required.version}" />
-                <attribute name="Plugin-Version" value="${plugin.version}" />				
+                <attribute name="Plugin-Requires" value="jts"/>
+                <attribute name="Plugin-Version" value="${plugin.version}" />	
             </manifest>
         </jar> 
     </target>
