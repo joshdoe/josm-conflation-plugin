@@ -10,7 +10,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 /**
  * Model for the conflation results table.
  */
-class MatchTableModel extends AbstractTableModel implements ConflationListChangedListener {
+class MatchTableModel extends AbstractTableModel implements ConflationListListener {
 
     private ConflationCandidateList candidates = null;
     private final static String[] columnNames = {tr("Reference"), tr("Subject"), "Distance (m)", "Score", "Tags"};
@@ -87,5 +87,9 @@ class MatchTableModel extends AbstractTableModel implements ConflationListChange
     @Override
     public void conflationListChanged(ConflationCandidateList list) {
         fireTableDataChanged();
+    }
+
+    @Override
+    public void conflationListSelectionChanged(ConflationCandidate selected) {
     }
 }

@@ -35,7 +35,7 @@ import org.openstreetmap.josm.tools.Shortcut;
 
 public class ConflationToggleDialog extends ToggleDialog
         implements EditLayerChangeListener, SelectionChangedListener, DataSetListener,
-        ConflationListChangedListener {
+        ConflationListListener {
 
     public final static String PREF_PREFIX = "conflation";
     JTable resultsTable;
@@ -44,13 +44,14 @@ public class ConflationToggleDialog extends ToggleDialog
     ConflationCandidateList candidates;
     ConflationSettings settings;
     SettingsDialog settingsDialog;
+    ConflationAction conflationAction;
 
     public ConflationToggleDialog(String name, String iconName, String tooltip,
             Shortcut shortcut, int preferredHeight, ConflationPlugin conflationPlugin) {
         super(tr(name), iconName, tr(tooltip), shortcut, preferredHeight);
 
         candidates = new ConflationCandidateList();
-//        candidates.addConflationListChangedListener(this);
+        candidates.addConflationListChangedListener(this);
 
         settingsDialog = new SettingsDialog();
         settingsDialog.setModalityType(Dialog.ModalityType.MODELESS);
@@ -58,7 +59,7 @@ public class ConflationToggleDialog extends ToggleDialog
         public void windowClosed(WindowEvent e) {
                 if (settingsDialog.getValue() == 1) {
                     settings = settingsDialog.getSettings();
-                    performConflation();
+                    performMatching();
                 }
         }});
 
@@ -79,9 +80,10 @@ public class ConflationToggleDialog extends ToggleDialog
 
         resultsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        conflationAction = new ConflationAction();
         createLayout(resultsTable, true, Arrays.asList(new SideButton[]{
                     new SideButton(new ConfigureAction(), true),
-                    new SideButton(new ConflationAction(), true)
+                    new SideButton(conflationAction, true)
 //                    new SideButton("Replace Geometry", false),
 //                    new SideButton("Merge Tags", false),
 //                    new SideButton("Remove", false)
@@ -90,6 +92,11 @@ public class ConflationToggleDialog extends ToggleDialog
 
     @Override
     public void conflationListChanged(ConflationCandidateList list) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void conflationListSelectionChanged(ConflationCandidate selected) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -136,7 +143,7 @@ public class ConflationToggleDialog extends ToggleDialog
                 OsmPrimitive reference = c.getReferenceObject();
                 OsmPrimitive subject = c.getSubjectObject();
 
-                conflationLayer.setSelectedCandidate(c);
+                candidates.setSelected(c);
 
                 reference.getDataSet().clearSelection();
                 subject.getDataSet().clearSelection();
@@ -204,7 +211,7 @@ public class ConflationToggleDialog extends ToggleDialog
         }
     }
 
-    class ConflationAction extends JosmAction {
+    class ConflationAction extends JosmAction implements ConflationListListener {
 
         public ConflationAction() {
             super(tr("Replace Geometry"), null, tr("Replace geometry"),
@@ -215,7 +222,8 @@ public class ConflationToggleDialog extends ToggleDialog
         @Override
         public void actionPerformed(ActionEvent e) {
             //FIXME: should layer listen for selection change?
-            ConflationCandidate c = conflationLayer.getSelectedCandidate();
+            ConflationCandidate c = candidates.getSelected();
+            
             if (settings.getReferenceLayer() != settings.getSubjectLayer()) {
                 JOptionPane.showMessageDialog(Main.parent, tr("Conflation between layers isn't supported yet."),
                         tr("Cannot conflate between layes"), JOptionPane.ERROR_MESSAGE);
@@ -224,6 +232,23 @@ public class ConflationToggleDialog extends ToggleDialog
             if (ReplaceGeometryUtils.replace(c.getReferenceObject(), c.getSubjectObject())) {
                 candidates.remove(c);
             }
+        }
+        
+        @Override
+        public void updateEnabledState() {
+            if (candidates != null && candidates.getSelected() != null)
+                setEnabled(true);
+            else
+                setEnabled(false);
+        }
+
+        @Override
+        public void conflationListChanged(ConflationCandidateList list) {
+        }
+
+        @Override
+        public void conflationListSelectionChanged(ConflationCandidate selected) {
+            updateEnabledState();
         }
     }
 
@@ -384,10 +409,11 @@ public class ConflationToggleDialog extends ToggleDialog
         return list;
     }
 
-    private void performConflation() {
+    private void performMatching() {
         candidates = generateCandidates(settings);
         tableModel.setCandidates(candidates);
         candidates.addConflationListChangedListener(tableModel);
+        candidates.addConflationListChangedListener(conflationAction);
         settings.getSubjectDataSet().addDataSetListener(this);
         settings.getReferenceDataSet().addDataSetListener(this);
         // add conflation layer

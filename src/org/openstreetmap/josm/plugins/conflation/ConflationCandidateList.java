@@ -10,9 +10,10 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
  *  Holds a list of conflation candidates and provides convenience functions.
  */
 public class ConflationCandidateList implements Iterable<ConflationCandidate> {
-    private CopyOnWriteArrayList<ConflationListChangedListener> listeners = new CopyOnWriteArrayList<ConflationListChangedListener>();
+    private CopyOnWriteArrayList<ConflationListListener> listeners = new CopyOnWriteArrayList<ConflationListListener>();
 
     List<ConflationCandidate> candidates;
+    ConflationCandidate selected;
 
     public ConflationCandidateList() {
         candidates = new LinkedList<ConflationCandidate>();
@@ -59,7 +60,7 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
 
     public void add(ConflationCandidate c) {
         candidates.add(c);
-        fireSelectionChanged();
+        fireListChanged();
     }
 
     public int size() {
@@ -76,22 +77,39 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
     
     public void clear() {
         candidates.clear();
-        fireSelectionChanged();
+        fireListChanged();
     }
 
     public boolean remove(ConflationCandidate c) {
         boolean ret = candidates.remove(c);
-        fireSelectionChanged();
+        fireListChanged();
         return ret;
     }
     
-    public void addConflationListChangedListener(ConflationListChangedListener listener) {
+    public void addConflationListChangedListener(ConflationListListener listener) {
         listeners.addIfAbsent(listener);
     }
 
-    public void fireSelectionChanged(){
-        for (ConflationListChangedListener l : listeners) {
+    public void fireListChanged(){
+        for (ConflationListListener l : listeners) {
             l.conflationListChanged(this);
+        }
+    }
+    
+    public void fireSelectionChanged(){
+        for (ConflationListListener l : listeners) {
+            l.conflationListSelectionChanged(selected);
+        }
+    }
+
+    public ConflationCandidate getSelected() {
+        return selected;
+    }
+    
+    public void setSelected(ConflationCandidate candidate) {
+        if (selected != candidate) {
+            selected = candidate;
+            fireSelectionChanged();
         }
     }
 }

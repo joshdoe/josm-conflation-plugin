@@ -30,7 +30,6 @@ import org.openstreetmap.josm.tools.ImageProvider;
  */
 public class ConflationLayer extends Layer implements LayerChangeListener {
     protected ConflationCandidateList candidates;
-    protected ConflationCandidate selectedCandidate = null;
     
     public ConflationLayer(ConflationCandidateList candidates) {
         super(tr("Conflation"));
@@ -57,7 +56,7 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
         final double sinPHI = Math.sin(PHI);
         for (Iterator<ConflationCandidate> it = this.candidates.iterator(); it.hasNext();) {
             ConflationCandidate candidate = it.next();
-            if (candidate.equals(selectedCandidate)) {
+            if (candidate.equals(candidates.getSelected())) {
                 g2.setColor(Color.blue);
             } else {
                 g2.setColor(Color.cyan);
@@ -172,13 +171,5 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
     public void setCandidates(ConflationCandidateList candidates) {
         this.candidates = candidates;
         // TODO: does repaint automatically occur?
-    }
-    
-    public void setSelectedCandidate(ConflationCandidate c) {
-        selectedCandidate = c;
-    }
-    
-    public ConflationCandidate getSelectedCandidate() {
-        return selectedCandidate;
     }
 }
