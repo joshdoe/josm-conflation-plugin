@@ -17,6 +17,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.TableCellRenderer;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -29,6 +30,8 @@ import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryCommand;
+import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryUtils;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -151,13 +154,7 @@ public class ConflationToggleDialog extends ToggleDialog
                 subject.getDataSet().addSelected(subject);
 
                 // zoom/center on pair
-                BoundingXYVisitor box = new BoundingXYVisitor();
-                box.computeBoundingBox(Arrays.asList(reference, subject));
-                if (box.getBounds() == null) {
-                    return;
-                }
-                box.enlargeBoundingBox();
-                Main.map.mapView.recalculateCenterScale(box);
+                AutoScaleAction.zoomTo(Arrays.asList(reference, subject));
             }
 
         }
@@ -226,12 +223,25 @@ public class ConflationToggleDialog extends ToggleDialog
             
             if (settings.getReferenceLayer() != settings.getSubjectLayer()) {
                 JOptionPane.showMessageDialog(Main.parent, tr("Conflation between layers isn't supported yet."),
-                        tr("Cannot conflate between layes"), JOptionPane.ERROR_MESSAGE);
+                        tr("Cannot conflate between layers"), JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            if (ReplaceGeometryUtils.replace(c.getReferenceObject(), c.getSubjectObject())) {
-                candidates.remove(c);
+            ReplaceGeometryCommand replaceCommand;
+            try {
+                replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
+                        c.getSubjectObject(),
+                        c.getReferenceObject());
+
+                // user canceled action
+                if (replaceCommand == null) {
+                    return;
+                }
+            } catch (ReplaceGeometryException ex) {
+                JOptionPane.showMessageDialog(Main.parent,
+                        ex.getMessage(), tr("Cannot replace geometry."), JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
+            Main.main.undoRedo.add(new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand));
         }
         
         @Override
