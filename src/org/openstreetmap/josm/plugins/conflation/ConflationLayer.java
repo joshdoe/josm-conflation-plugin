@@ -26,7 +26,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
 /**
  * A layer to show arrows and other symbols to indicate what primitives have been matched.
  *
- * @author Josh Doe <josh@joshdoe.com>
+ * @author joshdoe
  */
 public class ConflationLayer extends Layer implements LayerChangeListener {
     protected ConflationCandidateList candidates;
@@ -56,7 +56,7 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
         final double sinPHI = Math.sin(PHI);
         for (Iterator<ConflationCandidate> it = this.candidates.iterator(); it.hasNext();) {
             ConflationCandidate candidate = it.next();
-            if (candidate.equals(candidates.getSelected())) {
+            if (candidates.getSelected().contains(candidate)) {
                 g2.setColor(Color.blue);
             } else {
                 g2.setColor(Color.cyan);
@@ -157,15 +157,6 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
     @Override
     public void layerRemoved(Layer layer) {
         //TODO: if ref or non-ref layer removed, remove arrows
-    }
-
-    /**
-     * replies the set of conflicts currently managed in this layer
-     *
-     * @return the set of conflicts currently managed in this layer
-     */
-    public ConflationCandidateList getCandidates() {
-        return this.candidates;
     }
     
     public void setCandidates(ConflationCandidateList candidates) {

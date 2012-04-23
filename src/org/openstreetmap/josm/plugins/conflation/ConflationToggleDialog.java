@@ -19,10 +19,11 @@ import javax.swing.table.TableCellRenderer;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.command.Command;
+import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.event.*;
-import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.SideButton;
@@ -33,6 +34,7 @@ import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryCommand;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryUtils;
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -43,7 +45,7 @@ public class ConflationToggleDialog extends ToggleDialog
     public final static String PREF_PREFIX = "conflation";
     JTable resultsTable;
     ConflationLayer conflationLayer;
-    MatchTableModel tableModel;
+    ConflationCandidatesTableModel tableModel;
     ConflationCandidateList candidates;
     ConflationSettings settings;
     SettingsDialog settingsDialog;
@@ -59,17 +61,20 @@ public class ConflationToggleDialog extends ToggleDialog
         settingsDialog = new SettingsDialog();
         settingsDialog.setModalityType(Dialog.ModalityType.MODELESS);
         settingsDialog.addWindowListener(new WindowAdapter() {
-        public void windowClosed(WindowEvent e) {
+
+            @Override
+            public void windowClosed(WindowEvent e) {
                 if (settingsDialog.getValue() == 1) {
                     settings = settingsDialog.getSettings();
                     performMatching();
                 }
-        }});
+            }
+        });
 
-        tableModel = new MatchTableModel();
-
+        // create table to show candidates and allow multiple selections
+        tableModel = new ConflationCandidatesTableModel();
         resultsTable = new JTable(tableModel);
-
+        
         // add selection handler, to center/zoom view
         resultsTable.getSelectionModel().addListSelectionListener(
                 new MatchListSelectionHandler());
@@ -81,7 +86,8 @@ public class ConflationToggleDialog extends ToggleDialog
         resultsTable.getColumnModel().getColumn(1).setCellRenderer(new OsmPrimitivRenderer());
         resultsTable.getColumnModel().getColumn(4).setCellRenderer(new ColorTableCellRenderer("Tags"));
 
-        resultsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        resultsTable.setRowSelectionAllowed(true);
+        resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         conflationAction = new ConflationAction();
         createLayout(resultsTable, true, Arrays.asList(new SideButton[]{
@@ -99,7 +105,7 @@ public class ConflationToggleDialog extends ToggleDialog
     }
 
     @Override
-    public void conflationListSelectionChanged(ConflationCandidate selected) {
+    public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -131,32 +137,43 @@ public class ConflationToggleDialog extends ToggleDialog
 
         @Override
         public void valueChanged(ListSelectionEvent e) {
+            // don't do anything if selection is actively being changed
+            if (e.getValueIsAdjusting())
+                return;
+            
             ListSelectionModel lsm = (ListSelectionModel) e.getSource();
 
-            int firstIndex = lsm.getMinSelectionIndex();
-            int lastIndex = lsm.getMaxSelectionIndex();
-            boolean isAdjusting = e.getValueIsAdjusting();
-            if (isAdjusting) {
-                return;
+            Collection<ConflationCandidate> selCands = new HashSet<ConflationCandidate>();
+            
+            int minIndex = lsm.getMinSelectionIndex();
+            int maxIndex = lsm.getMaxSelectionIndex();
+
+            for (int i = minIndex; i <= maxIndex; i++) {
+                if (lsm.isSelectedIndex(i))
+                    selCands.add(candidates.get(i));
             }
-
-            // only one item selected, show tags and zoom/center map
-            if (!lsm.isSelectionEmpty() && firstIndex == lastIndex && firstIndex < candidates.size()) {
-                ConflationCandidate c = candidates.get(firstIndex);
-                OsmPrimitive reference = c.getReferenceObject();
-                OsmPrimitive subject = c.getSubjectObject();
-
-                candidates.setSelected(c);
-
-                reference.getDataSet().clearSelection();
-                subject.getDataSet().clearSelection();
-                reference.getDataSet().addSelected(reference);
-                subject.getDataSet().addSelected(subject);
-
-                // zoom/center on pair
-                AutoScaleAction.zoomTo(Arrays.asList(reference, subject));
+            
+            candidates.setSelected(selCands);
+            
+            
+            Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
+            Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
+            for (ConflationCandidate c : selCands) {
+                refSelected.add(c.getReferenceObject());
+                subSelected.add(c.getSubjectObject());
             }
+            
+            // select objects
+            settings.getReferenceDataSet().clearSelection();
+            settings.getSubjectDataSet().clearSelection();
+            settings.getReferenceDataSet().addSelected(refSelected);
+            settings.getSubjectDataSet().addSelected(subSelected);
 
+            // zoom/center on selection
+            Collection<OsmPrimitive> allSelected = new HashSet<OsmPrimitive>();
+            allSelected.addAll(refSelected);
+            allSelected.addAll(subSelected);
+            AutoScaleAction.zoomTo(allSelected);
         }
     }
 
@@ -219,7 +236,6 @@ public class ConflationToggleDialog extends ToggleDialog
         @Override
         public void actionPerformed(ActionEvent e) {
             //FIXME: should layer listen for selection change?
-            ConflationCandidate c = candidates.getSelected();
             
             if (settings.getReferenceLayer() != settings.getSubjectLayer()) {
                 JOptionPane.showMessageDialog(Main.parent, tr("Conflation between layers isn't supported yet."),
@@ -227,26 +243,36 @@ public class ConflationToggleDialog extends ToggleDialog
                 return;
             }
             ReplaceGeometryCommand replaceCommand;
+            Collection<Command> cmds = new LinkedList<Command>();
             try {
-                replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
-                        c.getSubjectObject(),
-                        c.getReferenceObject());
+                for (ConflationCandidate c : candidates.getSelected()) {
+                    replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
+                            c.getSubjectObject(),
+                            c.getReferenceObject());
 
-                // user canceled action
-                if (replaceCommand == null) {
-                    return;
+                    // user canceled action, but continue with candidates so far
+                    if (replaceCommand == null) {
+                        break;
+                    }
+                    cmds.add(new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand));
                 }
             } catch (ReplaceGeometryException ex) {
                 JOptionPane.showMessageDialog(Main.parent,
                         ex.getMessage(), tr("Cannot replace geometry."), JOptionPane.INFORMATION_MESSAGE);
-                return;
             }
-            Main.main.undoRedo.add(new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand));
+            
+            if (cmds.size() == 1) {
+                Main.main.undoRedo.add(cmds.iterator().next());
+            } else if (cmds.size() > 1) {
+                SequenceCommand seqCmd = new SequenceCommand(tr(marktr("Conflate {0} objects"), cmds.size()), cmds);
+                Main.main.undoRedo.add(seqCmd);
+            }
         }
         
         @Override
         public void updateEnabledState() {
-            if (candidates != null && candidates.getSelected() != null)
+            if (candidates != null && candidates.getSelected() != null &&
+                    !candidates.getSelected().isEmpty())
                 setEnabled(true);
             else
                 setEnabled(false);
@@ -257,7 +283,7 @@ public class ConflationToggleDialog extends ToggleDialog
         }
 
         @Override
-        public void conflationListSelectionChanged(ConflationCandidate selected) {
+        public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
             updateEnabledState();
         }
     }

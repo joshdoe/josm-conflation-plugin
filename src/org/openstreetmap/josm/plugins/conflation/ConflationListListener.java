@@ -1,5 +1,7 @@
 package org.openstreetmap.josm.plugins.conflation;
 
+import java.util.Collection;
+
 public interface ConflationListListener {
 
     /**
@@ -14,5 +16,5 @@ public interface ConflationListListener {
      * 
      * @param selected The newly selected conflation candidate.
      */
-    public void conflationListSelectionChanged(ConflationCandidate selected);
+    public void conflationListSelectionChanged(Collection<ConflationCandidate> selected);
 }

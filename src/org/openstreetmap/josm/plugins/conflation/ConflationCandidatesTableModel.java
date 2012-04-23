@@ -1,5 +1,6 @@
 package org.openstreetmap.josm.plugins.conflation;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import javax.swing.table.AbstractTableModel;
@@ -10,9 +11,10 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 /**
  * Model for the conflation results table.
  */
-class MatchTableModel extends AbstractTableModel implements ConflationListListener {
+class ConflationCandidatesTableModel extends AbstractTableModel implements ConflationListListener {
 
     private ConflationCandidateList candidates = null;
+    // TODO: make columns dynamic
     private final static String[] columnNames = {tr("Reference"), tr("Subject"), "Distance (m)", "Score", "Tags"};
 
     @Override
@@ -90,6 +92,6 @@ class MatchTableModel extends AbstractTableModel implements ConflationListListen
     }
 
     @Override
-    public void conflationListSelectionChanged(ConflationCandidate selected) {
+    public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
     }
 }

@@ -1,5 +1,8 @@
 package org.openstreetmap.josm.plugins.conflation;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,10 +16,11 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
     private CopyOnWriteArrayList<ConflationListListener> listeners = new CopyOnWriteArrayList<ConflationListListener>();
 
     List<ConflationCandidate> candidates;
-    ConflationCandidate selected;
+    Collection<ConflationCandidate> selected;
 
     public ConflationCandidateList() {
         candidates = new LinkedList<ConflationCandidate>();
+        selected = new ArrayList<ConflationCandidate>();
     }
 
     public boolean hasCandidate(ConflationCandidate c) {
@@ -102,13 +106,24 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
         }
     }
 
-    public ConflationCandidate getSelected() {
+    public Collection<ConflationCandidate> getSelected() {
         return selected;
     }
     
+    /**
+     * Set which candidate is currently selected. Set to null to clear selection.
+     * @param candidate 
+     */
     public void setSelected(ConflationCandidate candidate) {
-        if (selected != candidate) {
-            selected = candidate;
+        if (candidate != null)
+            setSelected(Collections.singleton(candidate));
+        else
+            setSelected(new ArrayList<ConflationCandidate>());
+    }
+    
+    public void setSelected(Collection<ConflationCandidate> candidates) {
+        if (!selected.equals(this)) {
+            selected = candidates;
             fireSelectionChanged();
         }
     }
