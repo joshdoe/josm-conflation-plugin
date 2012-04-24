@@ -6,6 +6,7 @@ import com.vividsolutions.jump.feature.*;
 import com.vividsolutions.jump.task.TaskMonitor;
 import java.awt.Component;
 import java.awt.Dialog;
+import java.awt.Rectangle;
 import java.awt.event.*;
 import java.awt.geom.Point2D;
 import java.util.*;
@@ -16,6 +17,7 @@ import javax.swing.table.TableCellRenderer;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
@@ -24,6 +26,7 @@ import org.openstreetmap.josm.data.osm.event.*;
 import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.SideButton;
+import org.openstreetmap.josm.gui.dialogs.SelectionListDialog;
 import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -48,13 +51,13 @@ public class ConflationToggleDialog extends ToggleDialog
     ConflationCandidateList candidates;
     ConflationSettings settings;
     SettingsDialog settingsDialog;
-    ConflationAction conflationAction;
+    ConflateAction conflateAction;
     DeleteAction deleteAction;
 
     public ConflationToggleDialog(ConflationPlugin conflationPlugin) {
-        // FIXME: create shortcut
+        // TODO: create shortcut?
         super(TITLE_PREFIX, "conflation.png", tr("Activates the conflation plugin"),
-                null, 200);
+                null, 150);
 
         candidates = new ConflationCandidateList();
 
@@ -91,12 +94,21 @@ public class ConflationToggleDialog extends ToggleDialog
         resultsTable.setRowSelectionAllowed(true);
         resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        conflationAction = new ConflationAction();
+        conflateAction = new ConflateAction();
+        final SideButton conflateButton = new SideButton(conflateAction);
+        // TODO: don't need this arrow box now, but likely will shortly
+//        conflateButton.createArrow(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                ConflatePopupMenu.launch(conflateButton);
+//            }
+//        });
+        
         deleteAction = new DeleteAction();
         createLayout(resultsTable, true, Arrays.asList(new SideButton[]{
-                    new SideButton(new ConfigureAction(), true),
-                    new SideButton(conflationAction, true),
-                    new SideButton(deleteAction, true)
+                    new SideButton(new ConfigureAction()),
+                    conflateButton,
+                    new SideButton(deleteAction)
 //                    new SideButton("Replace Geometry", false),
 //                    new SideButton("Merge Tags", false),
 //                    new SideButton("Remove", false)
@@ -165,9 +177,9 @@ public class ConflationToggleDialog extends ToggleDialog
     public class ConfigureAction extends JosmAction {
 
         public ConfigureAction() {
-            super(tr("Configure"), null, tr("Configure conflation"),
-                    Shortcut.registerShortcut("conflation:configure", tr("Conflation: {0}", tr("Conflation")),
-                    KeyEvent.VK_F, Shortcut.ALT_CTRL), false);
+            // TODO: settle on sensible shortcuts
+            super(tr("Configure"), "dialogs/settings", tr("Configure conflation options"),
+                    null, false);
         }
 
         @Override
@@ -190,13 +202,39 @@ public class ConflationToggleDialog extends ToggleDialog
         ListSelectionModel lsm = resultsTable.getSelectionModel();
         Collection<ConflationCandidate> selCands = new HashSet<ConflationCandidate>();
         for (int i = lsm.getMinSelectionIndex(); i <= lsm.getMaxSelectionIndex(); i++) {
-            if (lsm.isSelectedIndex(i)) {
+            if (lsm.isSelectedIndex(i) && i < candidates.size()) {
                 selCands.add(candidates.get(i));
             }
         }
         return selCands;
     }
     
+    protected static class ConflateMenuItem extends JMenuItem implements ActionListener {
+        public ConflateMenuItem(String name) {
+            super(name);
+            addActionListener(this); //TODO: is this needed?
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            //TODO: do something!
+        }
+    }
+    protected static class ConflatePopupMenu extends JPopupMenu {
+
+        static public void launch(Component parent) {
+            JPopupMenu menu = new ConflatePopupMenu();
+            Rectangle r = parent.getBounds();
+            menu.show(parent, r.x, r.y + r.height);
+        }
+
+        public ConflatePopupMenu() {
+            add(new ConflateMenuItem("Use reference geometry, reference tags"));
+            add(new ConflateMenuItem("Use reference geometry, subject tags"));
+            add(new ConflateMenuItem("Use subject geometry, reference tags"));
+        }
+    }
+        
     class MatchListSelectionHandler implements ListSelectionListener {
 
         @Override
@@ -319,10 +357,11 @@ public class ConflationToggleDialog extends ToggleDialog
         
     }
     
-    class ConflationAction extends JosmAction implements ConflationListListener {
+    class ConflateAction extends JosmAction implements ConflationListListener {
 
-        public ConflationAction() {
-            super(tr("Replace Geometry"), null, tr("Replace geometry"),
+        public ConflateAction() {
+            // TODO: make sure shortcuts make sense
+            super(tr("Conflate"), "dialogs/conflation", tr("Conflate selected objects"),
                     Shortcut.registerShortcut("conflation:replace", tr("Conflation: {0}", tr("Replace")),
                     KeyEvent.VK_F, Shortcut.ALT_CTRL), false);
         }
@@ -548,7 +587,7 @@ public class ConflationToggleDialog extends ToggleDialog
         updateTitle();
         tableModel.setCandidates(candidates);
         candidates.addConflationListChangedListener(tableModel);
-        candidates.addConflationListChangedListener(conflationAction);
+        candidates.addConflationListChangedListener(conflateAction);
         candidates.addConflationListChangedListener(deleteAction);
         candidates.addConflationListChangedListener(this);
         settings.getSubjectDataSet().addDataSetListener(this);
