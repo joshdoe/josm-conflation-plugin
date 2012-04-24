@@ -379,7 +379,9 @@ public class ConflationToggleDialog extends ToggleDialog
             Collection<Command> cmds = new LinkedList<Command>();
             ConflationCandidate nextSelection = candidates.findNextSelection();
             try {
-                for (ConflationCandidate c : candidates.getSelected()) {
+                // iterate over selected matches in reverse order since they will be removed as we go
+                List<ConflationCandidate> selCands = new ArrayList(candidates.getSelected());
+                for (ConflationCandidate c : selCands) {
                     replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
                             c.getSubjectObject(),
                             c.getReferenceObject());
@@ -388,19 +390,25 @@ public class ConflationToggleDialog extends ToggleDialog
                     if (replaceCommand == null) {
                         break;
                     }
-                    cmds.add(new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand));
+                    ConflateCommand conflateCommand =
+                            new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand);
+                    cmds.add(conflateCommand);
+                    
+                    // FIXME: how to chain commands which change relations? (see below)
+                    Main.main.undoRedo.add(conflateCommand);
                 }
             } catch (ReplaceGeometryException ex) {
                 JOptionPane.showMessageDialog(Main.parent,
                         ex.getMessage(), tr("Cannot replace geometry."), JOptionPane.INFORMATION_MESSAGE);
             }
             
-            if (cmds.size() == 1) {
-                Main.main.undoRedo.add(cmds.iterator().next());
-            } else if (cmds.size() > 1) {
-                SequenceCommand seqCmd = new SequenceCommand(tr(marktr("Conflate {0} objects"), cmds.size()), cmds);
-                Main.main.undoRedo.add(seqCmd);
-            }
+            // FIXME: ReplaceGeometry changes relations, so can't put it in a SequenceCommand
+//            if (cmds.size() == 1) {
+//                Main.main.undoRedo.add(cmds.iterator().next());
+//            } else if (cmds.size() > 1) {
+//                SequenceCommand seqCmd = new SequenceCommand(tr(marktr("Conflate {0} objects"), cmds.size()), cmds);
+//                Main.main.undoRedo.add(seqCmd);
+//            }
             
             if (candidates.getSelected().isEmpty())
                 candidates.setSelected(nextSelection);
