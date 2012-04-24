@@ -1,11 +1,6 @@
 package org.openstreetmap.josm.plugins.conflation;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 
@@ -62,9 +57,15 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
         return candidates.iterator();
     }
 
-    public void add(ConflationCandidate c) {
-        candidates.add(c);
-        fireListChanged();
+    public boolean add(ConflationCandidate c) {
+        return addAll(Collections.singleton(c));
+    }
+    
+    public boolean addAll(Collection<ConflationCandidate> toAdd) {
+        boolean changed = candidates.addAll(toAdd);
+        if (changed)
+            fireListChanged();
+        return changed;
     }
 
     public int size() {
@@ -74,19 +75,72 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
     public ConflationCandidate get(int index) {
         return candidates.get(index);
     }
-
-    public ConflationCandidate remove(int index) {
-        return candidates.remove(index);
+    
+    public int indexOf(ConflationCandidate candidate) {
+        return candidates.indexOf(candidate);
     }
     
+    /**
+     * Remove all candidates and clear selection.
+     */
     public void clear() {
-        candidates.clear();
-        fireListChanged();
+        if (candidates.size() > 0) {
+            setSelected(new ArrayList<ConflationCandidate>());
+            candidates.clear();
+            fireListChanged();
+        }
     }
 
     public boolean remove(ConflationCandidate c) {
-        boolean ret = candidates.remove(c);
-        fireListChanged();
+        return removeAll(Collections.singleton(c));
+    }
+    
+    public ConflationCandidate findNextSelection() {
+        ConflationCandidate next = null;
+        // if gap in selection exists, use that as the next selection
+        for (int i = 1; i < candidates.size() - 1; i++) {
+            if (selected.contains(candidates.get(i - 1)) &&
+                !selected.contains(candidates.get(i)) &&
+                selected.contains(candidates.get(i + 1))) {
+                next = candidates.get(i);
+                break;
+            }
+        }
+        
+        if (next == null) {
+            int first = candidates.size();
+            int last = -1;
+            for (ConflationCandidate c : selected) {
+                first = Math.min(first, candidates.indexOf(c));
+                last = Math.max(last, candidates.indexOf(c));
+            }
+            if (last + 1 < candidates.size())
+                next = candidates.get(last + 1);
+            else if (first - 1 >= 0)
+                next = candidates.get(first - 1);
+            else
+                next = null;
+        }
+        
+        return next;
+    }
+    
+    public boolean removeAll(Collection<ConflationCandidate> candidatesToRemove) {
+        // find next to select if entire selection is removed
+        ConflationCandidate next = findNextSelection();
+        
+        boolean ret = candidates.removeAll(candidatesToRemove);
+        if (selected.removeAll(candidatesToRemove)) {
+        
+            if (selected.isEmpty())
+                selected.add(next);
+
+            fireSelectionChanged();
+        }
+        
+        if (ret)
+            fireListChanged();
+        
         return ret;
     }
     
@@ -122,9 +176,11 @@ public class ConflationCandidateList implements Iterable<ConflationCandidate> {
     }
     
     public void setSelected(Collection<ConflationCandidate> candidates) {
-        if (!selected.equals(this)) {
-            selected = candidates;
-            fireSelectionChanged();
-        }
+        if (selected.containsAll(candidates) && selected.size() == candidates.size())
+            return;
+        
+        selected.clear();
+        selected.addAll(candidates);
+        fireSelectionChanged();
     }
 }

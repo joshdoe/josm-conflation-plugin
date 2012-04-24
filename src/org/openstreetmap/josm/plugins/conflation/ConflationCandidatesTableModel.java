@@ -36,20 +36,21 @@ class ConflationCandidatesTableModel extends AbstractTableModel implements Confl
 
     @Override
     public Object getValueAt(int row, int col) {
-        if (candidates == null)
+        if (candidates == null || row < 0 || row >= candidates.size())
             return null;
         
         ConflationCandidate c = candidates.get(row);
         if (col == 0) {
+            // TODO: use fancier string
             return c.getReferenceObject();
         } else if (col == 1) {
+            // TODO: use fancier string
             return c.getSubjectObject();
         } else if (col == 2) {
             return c.getDistance();
         } else if (col == 3) {
             return c.getScore();
-        }
-        if (col == 4) {
+        } else if (col == 4) {
             HashSet<OsmPrimitive> set = new HashSet<OsmPrimitive>();
             set.add(c.getReferenceObject());
             set.add(c.getSubjectObject());
@@ -61,9 +62,9 @@ class ConflationCandidatesTableModel extends AbstractTableModel implements Confl
                 return "Conflicts!";
             }
 
-        } else {
-            return 0;
         }
+        
+        return null;
     }
 
     @Override
