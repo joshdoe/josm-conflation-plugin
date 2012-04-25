@@ -67,7 +67,7 @@
                 <attribute name="Plugin-Class" value="org.openstreetmap.josm.plugins.conflation.ConflationPlugin" />
                 <attribute name="Plugin-Date" value="${plugin.build.date}" />
                 <attribute name="Plugin-Description" value="(Warning: Experimental!) Tool for conflating (merging) data." />
-                <attribute name="Plugin-Icon" value="images/conflation.png"/>
+                <attribute name="Plugin-Icon" value="images/dialogs/conflation.png"/>
                 <attribute name="Plugin-Link" value="http://wiki.openstreetmap.org/wiki/JOSM/Plugins/Conflation" />
                 <attribute name="Plugin-Mainversion" value="${josm.required.version}" />
                 <attribute name="Plugin-Requires" value="jts"/>
