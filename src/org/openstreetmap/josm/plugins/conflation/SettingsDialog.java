@@ -1,3 +1,4 @@
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import java.awt.GridBagLayout;
@@ -141,8 +142,8 @@ public class SettingsDialog extends ExtendedDialog {
     /**
      * @return the settings
      */
-    public ConflationSettings getSettings() {
-        ConflationSettings settings = new ConflationSettings();
+    public SimpleMatchSettings getSettings() {
+        SimpleMatchSettings settings = new SimpleMatchSettings();
         settings.setReferenceDataSet(referenceDataSet);
         settings.setReferenceLayer(referenceLayer);
         settings.setReferenceSelection(referenceSelection);
@@ -169,7 +170,7 @@ public class SettingsDialog extends ExtendedDialog {
     /**
      * @param settings the settings to set
      */
-    public void setSettings(ConflationSettings settings) {
+    public void setSettings(SimpleMatchSettings settings) {
         referenceDataSet = settings.getReferenceDataSet();
         referenceLayer = settings.getReferenceLayer();
         referenceSelection = settings.getReferenceSelection();

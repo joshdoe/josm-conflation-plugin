@@ -1,3 +1,4 @@
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import com.vividsolutions.jump.feature.AbstractBasicFeature;

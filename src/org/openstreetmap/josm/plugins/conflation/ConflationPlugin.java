@@ -1,13 +1,9 @@
-// License: GPL. Copyright 2011 by Josh Doe and others
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
-import java.awt.event.KeyEvent;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
-import org.openstreetmap.josm.tools.Shortcut;
-
-import static org.openstreetmap.josm.tools.I18n.tr;
 
 public class ConflationPlugin extends Plugin {
 

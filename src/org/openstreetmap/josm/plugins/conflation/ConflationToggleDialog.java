@@ -1,3 +1,4 @@
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import com.vividsolutions.jcs.conflate.polygonmatch.*;
@@ -41,15 +42,15 @@ import org.openstreetmap.josm.tools.Shortcut;
 
 public class ConflationToggleDialog extends ToggleDialog
         implements EditLayerChangeListener, SelectionChangedListener, DataSetListener,
-        ConflationListListener {
+        SimpleMatchListListener {
 
     public final static String TITLE_PREFIX = tr("Conflation");
     public final static String PREF_PREFIX = "conflation";
     JTable resultsTable;
     ConflationLayer conflationLayer;
-    ConflationCandidatesTableModel tableModel;
-    ConflationCandidateList candidates;
-    ConflationSettings settings;
+    SimpleMatchesTableModel tableModel;
+    SimpleMatchList matches;
+    SimpleMatchSettings settings;
     SettingsDialog settingsDialog;
     ConflateAction conflateAction;
     DeleteAction deleteAction;
@@ -59,7 +60,7 @@ public class ConflationToggleDialog extends ToggleDialog
         super(TITLE_PREFIX, "conflation.png", tr("Activates the conflation plugin"),
                 null, 150);
 
-        candidates = new ConflationCandidateList();
+        matches = new SimpleMatchList();
 
         settingsDialog = new SettingsDialog();
         settingsDialog.setModalityType(Dialog.ModalityType.MODELESS);
@@ -74,8 +75,8 @@ public class ConflationToggleDialog extends ToggleDialog
             }
         });
 
-        // create table to show candidates and allow multiple selections
-        tableModel = new ConflationCandidatesTableModel();
+        // create table to show matches and allow multiple selections
+        tableModel = new SimpleMatchesTableModel();
         resultsTable = new JTable(tableModel);
 
         // add selection handler, to center/zoom view
@@ -116,33 +117,33 @@ public class ConflationToggleDialog extends ToggleDialog
     }
 
     @Override
-    public void conflationListChanged(ConflationCandidateList list) {
+    public void simpleMatchListChanged(SimpleMatchList list) {
         updateTitle();
     }
 
     @Override
-    public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
-        // adjust table selection to match candidate list selection
+    public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
+        // adjust table selection to match match list selection
         // FIXME: is this really where I should be doing this?
         
         // selection is the same, don't do anything
-        Collection<ConflationCandidate> tableSelection = getSelectedFromTable();
+        Collection<SimpleMatch> tableSelection = getSelectedFromTable();
         if (tableSelection.containsAll(selected) && tableSelection.size() == selected.size())
             return;
         
         ListSelectionModel lsm = resultsTable.getSelectionModel();
         lsm.setValueIsAdjusting(true);
         lsm.clearSelection();
-        for (ConflationCandidate c : selected) {
-            int idx = candidates.indexOf(c);
+        for (SimpleMatch c : selected) {
+            int idx = matches.indexOf(c);
             lsm.addSelectionInterval(idx, idx);
         }
         lsm.setValueIsAdjusting(false);
     }
 
     private void updateTitle() {
-        if (candidates.size() > 0)
-            setTitle(tr(TITLE_PREFIX + marktr(": {0} matches"), candidates.size()));
+        if (matches.size() > 0)
+            setTitle(tr(TITLE_PREFIX + marktr(": {0} matches"), matches.size()));
         else
             setTitle(TITLE_PREFIX);    
     }
@@ -155,7 +156,7 @@ public class ConflationToggleDialog extends ToggleDialog
 
             Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
             Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
-            for (ConflationCandidate c : candidates.getSelected()) {
+            for (SimpleMatch c : matches.getSelected()) {
                 refSelected.add(c.getReferenceObject());
                 subSelected.add(c.getSubjectObject());
             }
@@ -198,15 +199,15 @@ public class ConflationToggleDialog extends ToggleDialog
         // TODO
     }
 
-    private Collection<ConflationCandidate> getSelectedFromTable() {
+    private Collection<SimpleMatch> getSelectedFromTable() {
         ListSelectionModel lsm = resultsTable.getSelectionModel();
-        Collection<ConflationCandidate> selCands = new HashSet<ConflationCandidate>();
+        Collection<SimpleMatch> selMatches = new HashSet<SimpleMatch>();
         for (int i = lsm.getMinSelectionIndex(); i <= lsm.getMaxSelectionIndex(); i++) {
-            if (lsm.isSelectedIndex(i) && i < candidates.size()) {
-                selCands.add(candidates.get(i));
+            if (lsm.isSelectedIndex(i) && i < matches.size()) {
+                selMatches.add(matches.get(i));
             }
         }
-        return selCands;
+        return selMatches;
     }
     
     protected static class ConflateMenuItem extends JMenuItem implements ActionListener {
@@ -239,7 +240,7 @@ public class ConflationToggleDialog extends ToggleDialog
 
         @Override
         public void valueChanged(ListSelectionEvent e) {
-            candidates.setSelected(getSelectedFromTable());
+            matches.setSelected(getSelectedFromTable());
             Main.map.mapView.repaint();
         }
     }
@@ -296,19 +297,19 @@ public class ConflationToggleDialog extends ToggleDialog
      * Command to delete selected matches.
      */
     class DeleteCommand extends Command {
-        private Collection<ConflationCandidate> toRemove;
-        public DeleteCommand(Collection<ConflationCandidate> toRemove) {
+        private Collection<SimpleMatch> toRemove;
+        public DeleteCommand(Collection<SimpleMatch> toRemove) {
             this.toRemove = toRemove;
         }
         
         @Override
         public boolean executeCommand() {
-            return candidates.removeAll(toRemove);
+            return matches.removeAll(toRemove);
         }
         
         @Override
         public void undoCommand() {
-            candidates.addAll(toRemove);
+            matches.addAll(toRemove);
         }
         
         @Override
@@ -326,7 +327,7 @@ public class ConflationToggleDialog extends ToggleDialog
         }
     }
     
-    class DeleteAction extends JosmAction implements ConflationListListener {
+    class DeleteAction extends JosmAction implements SimpleMatchListListener {
 
         public DeleteAction() {
             super(tr("Delete"), "dialogs/delete", tr("Remove selected matches"),
@@ -334,30 +335,30 @@ public class ConflationToggleDialog extends ToggleDialog
         }
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.main.undoRedo.add(new DeleteCommand(candidates.getSelected()));
+            Main.main.undoRedo.add(new DeleteCommand(matches.getSelected()));
         }
 
         @Override
         public void updateEnabledState() {
-            if (candidates != null && candidates.getSelected() != null &&
-                    !candidates.getSelected().isEmpty())
+            if (matches != null && matches.getSelected() != null &&
+                    !matches.getSelected().isEmpty())
                 setEnabled(true);
             else
                 setEnabled(false);
         }
         @Override
-        public void conflationListChanged(ConflationCandidateList list) {
+        public void simpleMatchListChanged(SimpleMatchList list) {
         }
 
         @Override
-        public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
+        public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
             updateEnabledState();
         }
         
         
     }
     
-    class ConflateAction extends JosmAction implements ConflationListListener {
+    class ConflateAction extends JosmAction implements SimpleMatchListListener {
 
         public ConflateAction() {
             // TODO: make sure shortcuts make sense
@@ -377,21 +378,21 @@ public class ConflationToggleDialog extends ToggleDialog
             }
             ReplaceGeometryCommand replaceCommand;
             Collection<Command> cmds = new LinkedList<Command>();
-            ConflationCandidate nextSelection = candidates.findNextSelection();
+            SimpleMatch nextSelection = matches.findNextSelection();
             try {
                 // iterate over selected matches in reverse order since they will be removed as we go
-                List<ConflationCandidate> selCands = new ArrayList(candidates.getSelected());
-                for (ConflationCandidate c : selCands) {
+                List<SimpleMatch> selMatches = new ArrayList(matches.getSelected());
+                for (SimpleMatch c : selMatches) {
                     replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
                             c.getSubjectObject(),
                             c.getReferenceObject());
 
-                    // user canceled action, but continue with candidates so far
+                    // user canceled action, but continue with matches so far
                     if (replaceCommand == null) {
                         break;
                     }
                     ConflateCommand conflateCommand =
-                            new ConflateCommand(c, candidates, settings.getSubjectLayer(), replaceCommand);
+                            new ConflateCommand(c, matches, settings.getSubjectLayer(), replaceCommand);
                     cmds.add(conflateCommand);
                     
                     // FIXME: how to chain commands which change relations? (see below)
@@ -410,25 +411,25 @@ public class ConflationToggleDialog extends ToggleDialog
 //                Main.main.undoRedo.add(seqCmd);
 //            }
             
-            if (candidates.getSelected().isEmpty())
-                candidates.setSelected(nextSelection);
+            if (matches.getSelected().isEmpty())
+                matches.setSelected(nextSelection);
         }
         
         @Override
         public void updateEnabledState() {
-            if (candidates != null && candidates.getSelected() != null &&
-                    !candidates.getSelected().isEmpty())
+            if (matches != null && matches.getSelected() != null &&
+                    !matches.getSelected().isEmpty())
                 setEnabled(true);
             else
                 setEnabled(false);
         }
 
         @Override
-        public void conflationListChanged(ConflationCandidateList list) {
+        public void simpleMatchListChanged(SimpleMatchList list) {
         }
 
         @Override
-        public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
+        public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
             updateEnabledState();
         }
     }
@@ -441,9 +442,9 @@ public class ConflationToggleDialog extends ToggleDialog
     public void primitivesRemoved(PrimitivesRemovedEvent event) {
         List<? extends OsmPrimitive> prims = event.getPrimitives();
         for (OsmPrimitive p : prims) {
-            for (ConflationCandidate c : candidates) {
+            for (SimpleMatch c : matches) {
                 if (c.getReferenceObject().equals(p) || c.getSubjectObject().equals(p)) {
-                    candidates.remove(c);
+                    matches.remove(c);
                     break;
                 }
             }
@@ -532,9 +533,9 @@ public class ConflationToggleDialog extends ToggleDialog
         
     }
     
-    private ConflationCandidateList generateCandidates(ConflationSettings settings) {
+    private SimpleMatchList generateMatches(SimpleMatchSettings settings) {
         JosmTaskMonitor monitor = new JosmTaskMonitor();
-        monitor.beginTask("Generating conflation candidates");
+        monitor.beginTask("Generating matches");
         
         // create Features and collections from primitive selections
         Set<OsmPrimitive> allPrimitives = new HashSet<OsmPrimitive>();
@@ -574,14 +575,14 @@ public class ConflationToggleDialog extends ToggleDialog
         // find matches
         Map<OsmFeature, Matches> map = finder.match(refColl, subColl, monitor);
         
-        monitor.subTask("Finishing conflation candidate list");
+        monitor.subTask("Finishing match list");
         
         // convert to simple one-to-one match
-        ConflationCandidateList list = new ConflationCandidateList();
+        SimpleMatchList list = new SimpleMatchList();
         for (Map.Entry<OsmFeature, Matches> entry: map.entrySet()) {
             OsmFeature target = entry.getKey();
             OsmFeature subject = (OsmFeature)entry.getValue().getTopMatch();
-            list.add(new ConflationCandidate(target.getPrimitive(), subject.getPrimitive(),
+            list.add(new SimpleMatch(target.getPrimitive(), subject.getPrimitive(),
                     entry.getValue().getTopScore()));
         }
         
@@ -591,13 +592,13 @@ public class ConflationToggleDialog extends ToggleDialog
     }
 
     private void performMatching() {
-        candidates = generateCandidates(settings);
+        matches = generateMatches(settings);
         updateTitle();
-        tableModel.setCandidates(candidates);
-        candidates.addConflationListChangedListener(tableModel);
-        candidates.addConflationListChangedListener(conflateAction);
-        candidates.addConflationListChangedListener(deleteAction);
-        candidates.addConflationListChangedListener(this);
+        tableModel.setMatches(matches);
+        matches.addConflationListChangedListener(tableModel);
+        matches.addConflationListChangedListener(conflateAction);
+        matches.addConflationListChangedListener(deleteAction);
+        matches.addConflationListChangedListener(this);
         settings.getSubjectDataSet().addDataSetListener(this);
         settings.getReferenceDataSet().addDataSetListener(this);
         // add conflation layer
@@ -609,8 +610,8 @@ public class ConflationToggleDialog extends ToggleDialog
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(Main.parent, ex.toString(), "Error adding conflation layer", JOptionPane.ERROR_MESSAGE);
         }
-        conflationLayer.setCandidates(candidates);
-//        candidates.addConflationListChangedListener(conflationLayer);
+        conflationLayer.setMatches(matches);
+//        matches.addConflationListChangedListener(conflationLayer);
 
                 
     }

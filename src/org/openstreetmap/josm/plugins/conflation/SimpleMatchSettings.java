@@ -1,7 +1,4 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import java.util.ArrayList;
@@ -11,9 +8,9 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 /**
  *
- * @author Josh
+ * @author joshdoe
  */
-public class ConflationSettings {
+public class SimpleMatchSettings {
     private ArrayList<OsmPrimitive> subjectSelection;
     private ArrayList<OsmPrimitive> referenceSelection;
     private OsmDataLayer referenceLayer;

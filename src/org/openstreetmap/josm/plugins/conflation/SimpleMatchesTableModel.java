@@ -1,3 +1,4 @@
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import java.util.Collection;
@@ -11,9 +12,9 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 /**
  * Model for the conflation results table.
  */
-class ConflationCandidatesTableModel extends AbstractTableModel implements ConflationListListener {
+class SimpleMatchesTableModel extends AbstractTableModel implements SimpleMatchListListener {
 
-    private ConflationCandidateList candidates = null;
+    private SimpleMatchList matches = null;
     // TODO: make columns dynamic
     private final static String[] columnNames = {tr("Reference"), tr("Subject"), "Distance (m)", "Score", "Tags"};
 
@@ -24,9 +25,9 @@ class ConflationCandidatesTableModel extends AbstractTableModel implements Confl
 
     @Override
     public int getRowCount() {
-        if (candidates == null)
+        if (matches == null)
             return 0;
-        return candidates.size();
+        return matches.size();
     }
 
     @Override
@@ -36,10 +37,10 @@ class ConflationCandidatesTableModel extends AbstractTableModel implements Confl
 
     @Override
     public Object getValueAt(int row, int col) {
-        if (candidates == null || row < 0 || row >= candidates.size())
+        if (matches == null || row < 0 || row >= matches.size())
             return null;
         
-        ConflationCandidate c = candidates.get(row);
+        SimpleMatch c = matches.get(row);
         if (col == 0) {
             // TODO: use fancier string
             return c.getReferenceObject();
@@ -73,26 +74,26 @@ class ConflationCandidatesTableModel extends AbstractTableModel implements Confl
     }
 
     /**
-     * @return the candidates
+     * @return the matches
      */
-    public ConflationCandidateList getCandidates() {
-        return candidates;
+    public SimpleMatchList getMatches() {
+        return matches;
     }
 
     /**
-     * @param candidates the candidates to set
+     * @param matches the matches to set
      */
-    public void setCandidates(ConflationCandidateList candidates) {
-        this.candidates = candidates;
+    public void setMatches(SimpleMatchList matches) {
+        this.matches = matches;
         fireTableDataChanged();
     }
 
     @Override
-    public void conflationListChanged(ConflationCandidateList list) {
+    public void simpleMatchListChanged(SimpleMatchList list) {
         fireTableDataChanged();
     }
 
     @Override
-    public void conflationListSelectionChanged(Collection<ConflationCandidate> selected) {
+    public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
     }
 }

@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
 import java.awt.BasicStroke;
@@ -29,12 +29,12 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * @author joshdoe
  */
 public class ConflationLayer extends Layer implements LayerChangeListener {
-    protected ConflationCandidateList candidates;
+    protected SimpleMatchList matches;
     
-    public ConflationLayer(ConflationCandidateList candidates) {
+    public ConflationLayer(SimpleMatchList matches) {
         super(tr("Conflation"));
         MapView.addLayerChangeListener(this);
-        this.candidates = candidates;
+        this.matches = matches;
     }
     
     public ConflationLayer() {
@@ -54,18 +54,18 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
         final double PHI = Math.toRadians(20);
         final double cosPHI = Math.cos(PHI);
         final double sinPHI = Math.sin(PHI);
-        for (Iterator<ConflationCandidate> it = this.candidates.iterator(); it.hasNext();) {
-            ConflationCandidate candidate = it.next();
-            if (candidates.getSelected().contains(candidate)) {
+        for (Iterator<SimpleMatch> it = this.matches.iterator(); it.hasNext();) {
+            SimpleMatch match = it.next();
+            if (matches.getSelected().contains(match)) {
                 g2.setColor(Color.blue);
             } else {
                 g2.setColor(Color.cyan);
             }
-            OsmPrimitive reference = candidate.getReferenceObject();
-            OsmPrimitive subject = candidate.getSubjectObject();
+            OsmPrimitive reference = match.getReferenceObject();
+            OsmPrimitive subject = match.getSubjectObject();
             if (reference != null && subject != null) {
                 GeneralPath path = new GeneralPath();
-                // we have a pair, so draw line between them, FIXME: not good to use getCenter() from here, move to utils?
+                // we have a pair, so draw line between them
                 Point p1 = mv.getPoint(ConflationUtils.getCenter(reference));
                 Point p2 = mv.getPoint(ConflationUtils.getCenter(subject));
                 path.moveTo(p1.x, p1.y);
@@ -117,10 +117,10 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
 
     @Override
     public void visitBoundingBox(BoundingXYVisitor v) {
-        for (Iterator<ConflationCandidate> it = this.candidates.iterator(); it.hasNext();) {
-            ConflationCandidate candidate = it.next();
-            OsmPrimitive reference = candidate.getReferenceObject();
-            OsmPrimitive subject = candidate.getSubjectObject();
+        for (Iterator<SimpleMatch> it = this.matches.iterator(); it.hasNext();) {
+            SimpleMatch match = it.next();
+            OsmPrimitive reference = match.getReferenceObject();
+            OsmPrimitive subject = match.getSubjectObject();
             if (reference != null && reference instanceof Node)
                 v.visit((Node)reference);
             if (subject != null && subject instanceof Node)
@@ -159,8 +159,8 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
         //TODO: if ref or non-ref layer removed, remove arrows
     }
     
-    public void setCandidates(ConflationCandidateList candidates) {
-        this.candidates = candidates;
+    public void setMatches(SimpleMatchList matches) {
+        this.matches = matches;
         // TODO: does repaint automatically occur?
     }
 }
