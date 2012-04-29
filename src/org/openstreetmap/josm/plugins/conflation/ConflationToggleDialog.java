@@ -11,6 +11,8 @@ import java.awt.Rectangle;
 import java.awt.event.*;
 import java.awt.geom.Point2D;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.table.TableCellRenderer;
@@ -28,6 +30,7 @@ import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.plugins.conflation.ConflateCommand.UserCancelException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryCommand;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryUtils;
@@ -96,19 +99,19 @@ public class ConflationToggleDialog extends ToggleDialog
 
         referenceOnlyList = new JList();
         subjectOnlyList = new JList();
-        
+
         referenceOnlyListModel = new UnmatchedListModel();
         referenceOnlyList = new JList(referenceOnlyListModel);
         referenceOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         referenceOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         referenceOnlyList.setTransferHandler(null); // no drag & drop
-        
+
         subjectOnlyListModel = new UnmatchedListModel();
         subjectOnlyList = new JList(subjectOnlyListModel);
         subjectOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         subjectOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         subjectOnlyList.setTransferHandler(null); // no drag & drop
-        
+
         DoubleClickHandler dblClickHandler = new DoubleClickHandler();
         matchTable.addMouseListener(dblClickHandler);
         referenceOnlyList.addMouseListener(dblClickHandler);
@@ -128,9 +131,9 @@ public class ConflationToggleDialog extends ToggleDialog
 //                ConflatePopupMenu.launch(conflateButton);
 //            }
 //        });
-        
+
         removeAction = new RemoveAction();
-        
+
         // add listeners to update enable state of buttons
         tabbedPane.addChangeListener(conflateAction);
         tabbedPane.addChangeListener(removeAction);
@@ -138,11 +141,11 @@ public class ConflationToggleDialog extends ToggleDialog
         referenceOnlyList.addListSelectionListener(removeAction);
         subjectOnlyList.addListSelectionListener(conflateAction);
         subjectOnlyList.addListSelectionListener(removeAction);
-        
+
         UnmatchedListDataListener unmatchedListener = new UnmatchedListDataListener();
         subjectOnlyListModel.addListDataListener(unmatchedListener);
         referenceOnlyListModel.addListDataListener(unmatchedListener);
-        
+
         createLayout(tabbedPane, true, Arrays.asList(new SideButton[]{
                     new SideButton(new ConfigureAction()),
                     conflateButton,
@@ -186,7 +189,7 @@ public class ConflationToggleDialog extends ToggleDialog
         tabbedPane.setTitleAt(tabbedPane.indexOfComponent(subjectOnlyList),
                 tr(marktr("Subject only ({0})"), subjectOnlyListModel.size()));
     }
-    
+
     private void selectAndZoomToSelectedMatches() {
         Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
         Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
@@ -207,7 +210,7 @@ public class ConflationToggleDialog extends ToggleDialog
         allSelected.addAll(subSelected);
         AutoScaleAction.zoomTo(allSelected);
     }
-    
+
     class DoubleClickHandler extends MouseAdapter {
         @Override
         public void mouseClicked(MouseEvent e) {
@@ -389,17 +392,17 @@ public class ConflationToggleDialog extends ToggleDialog
             this.model = model;
             this.objects = objects;
         }
-        
+
         @Override
         public boolean executeCommand() {
             return model.removeAll(objects);
         }
-        
+
         @Override
         public void undoCommand() {
             model.addAll(objects);
         }
-        
+
         @Override
         public void fillModifiedData(Collection<OsmPrimitive> modified, Collection<OsmPrimitive> deleted, Collection<OsmPrimitive> added) {
         }
@@ -408,18 +411,18 @@ public class ConflationToggleDialog extends ToggleDialog
         public String getDescriptionText() {
             return tr(marktr("Remove {0} unmatched objects"), objects.size());
         }
-        
+
         @Override
         public Icon getDescriptionIcon() {
             return ImageProvider.get("dialogs", "delete");
         }
-        
+
         @Override
         public Collection<OsmPrimitive> getParticipatingPrimitives() {
             return objects;
         }
-    }    
-    
+    }
+
     class RemoveAction extends JosmAction implements SimpleMatchListListener, ChangeListener, ListSelectionListener {
 
         public RemoveAction() {
@@ -460,7 +463,7 @@ public class ConflationToggleDialog extends ToggleDialog
             } else {
                 setEnabled(false);
             }
-            
+
         }
         @Override
         public void simpleMatchListChanged(SimpleMatchList list) {
@@ -475,7 +478,7 @@ public class ConflationToggleDialog extends ToggleDialog
         public void stateChanged(ChangeEvent ce) {
             updateEnabledState();
         }
-        
+
         @Override
         public void valueChanged(ListSelectionEvent lse) {
             updateEnabledState();
@@ -495,28 +498,19 @@ public class ConflationToggleDialog extends ToggleDialog
         public void actionPerformed(ActionEvent e) {
             //FIXME: should layer listen for selection change?
             
-            if (settings.getReferenceLayer() != settings.getSubjectLayer()) {
-                JOptionPane.showMessageDialog(Main.parent, tr("Conflation between layers isn't supported yet."),
-                        tr("Cannot conflate between layers"), JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            ReplaceGeometryCommand replaceCommand;
             Collection<Command> cmds = new LinkedList<Command>();
             SimpleMatch nextSelection = matches.findNextSelection();
             try {
                 // iterate over selected matches in reverse order since they will be removed as we go
                 List<SimpleMatch> selMatches = new ArrayList(matches.getSelected());
                 for (SimpleMatch c : selMatches) {
-                    replaceCommand = ReplaceGeometryUtils.buildReplaceCommand(
-                            c.getSubjectObject(),
-                            c.getReferenceObject());
 
-                    // user canceled action, but continue with matches so far
-                    if (replaceCommand == null) {
+                    ConflateCommand conflateCommand;
+                    try {
+                        conflateCommand = new ConflateCommand(c, matches, settings);
+                    } catch (UserCancelException ex) {
                         break;
                     }
-                    ConflateCommand conflateCommand =
-                            new ConflateCommand(c, matches, settings.getSubjectLayer(), replaceCommand);
                     cmds.add(conflateCommand);
                     
                     // FIXME: how to chain commands which change relations? (see below)
@@ -584,7 +578,7 @@ public class ConflationToggleDialog extends ToggleDialog
                     break;
                 }
             }
-            
+
             referenceOnlyListModel.removeElement(p);
             subjectOnlyListModel.removeElement(p);
         }
@@ -740,14 +734,14 @@ public class ConflationToggleDialog extends ToggleDialog
             referenceOnly.remove(match.getReferenceObject());
             subjectOnly.remove(match.getSubjectObject());
         }
-        
+
         referenceOnlyListModel.clear();
         referenceOnlyListModel.addAll(referenceOnly);
         subjectOnlyListModel.clear();
         subjectOnlyListModel.addAll(subjectOnly);
-        
+
         updateTabTitles();
-        
+
         matchTableModel.setMatches(matches);
         matches.addConflationListChangedListener(matchTableModel);
         matches.addConflationListChangedListener(conflateAction);
@@ -769,7 +763,7 @@ public class ConflationToggleDialog extends ToggleDialog
 
                 
     }
-    
+
     class UnmatchedListModel extends DefaultListModel {
 
         private void addAll(Collection<OsmPrimitive> objects) {
@@ -786,7 +780,7 @@ public class ConflationToggleDialog extends ToggleDialog
             return changed;
         }
     }
-    
+
     class UnmatchedListDataListener implements ListDataListener {
 
         @Override
@@ -803,6 +797,6 @@ public class ConflationToggleDialog extends ToggleDialog
         public void contentsChanged(ListDataEvent lde) {
             updateTabTitles();
         }
-        
+
     }
 }
