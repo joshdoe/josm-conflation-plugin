@@ -30,13 +30,6 @@ public class SettingsDialog extends ExtendedDialog {
     private JLabel subjectLayerLabel;
     private JPanel subjectPanel;
     private JLabel subjectSelectionLabel;
-    JCheckBox distanceCheckBox;
-    JSpinner distanceWeightSpinner;
-    JSpinner distanceCutoffSpinner;
-    JCheckBox stringCheckBox;
-    JSpinner stringWeightSpinner;
-    JSpinner stringCutoffSpinner;
-    JTextField stringTextField;
     
     ArrayList<OsmPrimitive> subjectSelection = null;
     ArrayList<OsmPrimitive> referenceSelection = null;
@@ -97,37 +90,6 @@ public class SettingsDialog extends ExtendedDialog {
         subjectPanel.add(jPanel5);
         pnl.add(subjectPanel);
         
-        JPanel costsPanel = new JPanel();
-        costsPanel.setBorder(BorderFactory.createTitledBorder(tr("Costs")));
-        costsPanel.setLayout(new GridBagLayout());
-        
-        costsPanel.add(GBC.glue(1, 1), GBC.std());
-        costsPanel.add(new JLabel(tr("Weight")), GBC.std());
-        costsPanel.add(new JLabel(tr("Cutoff")), GBC.eol());
-        
-        distanceCheckBox = new JCheckBox();
-        distanceCheckBox.setSelected(true);
-        distanceCheckBox.setText(tr("Distance"));
-        costsPanel.add(distanceCheckBox, GBC.std());
-        distanceWeightSpinner = new JSpinner(new SpinnerNumberModel(1.0, null, null, 1.0));
-        costsPanel.add(distanceWeightSpinner, GBC.std());
-        distanceCutoffSpinner = new JSpinner(new SpinnerNumberModel(100.0, null, null, 1.0));
-        costsPanel.add(distanceCutoffSpinner, GBC.eol());
-        
-        stringCheckBox = new JCheckBox();
-        stringCheckBox.setSelected(false);
-        stringCheckBox.setEnabled(false);
-        stringCheckBox.setText(tr("String"));
-        costsPanel.add(stringCheckBox, GBC.std());
-        stringWeightSpinner = new JSpinner(new SpinnerNumberModel(10.0, null, null, 1.0));
-        costsPanel.add(stringWeightSpinner, GBC.std());
-        stringCutoffSpinner = new JSpinner(new SpinnerNumberModel(100.0, null, null, 1.0));
-        costsPanel.add(stringCutoffSpinner, GBC.eol());
-        stringTextField = new JTextField("name", 14);
-        costsPanel.add(stringTextField, GBC.std());
-        
-        costsPanel.setEnabled(false);
-        pnl.add(costsPanel);
         setContent(pnl);
         setupDialog();
     }
@@ -150,19 +112,6 @@ public class SettingsDialog extends ExtendedDialog {
         settings.setSubjectDataSet(subjectDataSet);
         settings.setSubjectLayer(subjectLayer);
         settings.setSubjectSelection(subjectSelection);
-        
-        settings.distanceCutoff = (Double)distanceCutoffSpinner.getValue();
-        if (distanceCheckBox.isSelected())
-            settings.distanceWeight = (Double)distanceWeightSpinner.getValue();
-        else
-            settings.distanceWeight = 0;
-        settings.stringCutoff = (Double)stringCutoffSpinner.getValue();
-        if (stringCheckBox.isSelected())
-            settings.stringWeight = (Double)stringWeightSpinner.getValue();
-        else
-            settings.stringWeight = 0;
-            
-        settings.keyString = stringTextField.getText();
         
         return settings;
     }
