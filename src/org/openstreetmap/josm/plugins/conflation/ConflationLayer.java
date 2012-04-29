@@ -97,7 +97,7 @@ public class ConflationLayer extends Layer implements LayerChangeListener {
     @Override
     public Icon getIcon() {
         // TODO: change icon
-        return ImageProvider.get("layer", "gpx_small");
+        return ImageProvider.get("dialogs", "conflation");
     }
 
     @Override
