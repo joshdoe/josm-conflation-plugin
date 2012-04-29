@@ -12,22 +12,18 @@ import java.awt.event.*;
 import java.awt.geom.Point2D;
 import java.util.*;
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+import javax.swing.event.*;
 import javax.swing.table.TableCellRenderer;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
-import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.event.*;
 import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.SideButton;
-import org.openstreetmap.josm.gui.dialogs.SelectionListDialog;
 import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -46,14 +42,19 @@ public class ConflationToggleDialog extends ToggleDialog
 
     public final static String TITLE_PREFIX = tr("Conflation");
     public final static String PREF_PREFIX = "conflation";
-    JTable resultsTable;
+    JTabbedPane tabbedPane;
+    JTable matchTable;
+    JList referenceOnlyList;
+    UnmatchedListModel referenceOnlyListModel;
+    JList subjectOnlyList;
+    UnmatchedListModel subjectOnlyListModel;
     ConflationLayer conflationLayer;
-    SimpleMatchesTableModel tableModel;
+    SimpleMatchesTableModel matchTableModel;
     SimpleMatchList matches;
     SimpleMatchSettings settings;
     SettingsDialog settingsDialog;
     ConflateAction conflateAction;
-    DeleteAction deleteAction;
+    RemoveAction removeAction;
 
     public ConflationToggleDialog(ConflationPlugin conflationPlugin) {
         // TODO: create shortcut?
@@ -76,24 +77,47 @@ public class ConflationToggleDialog extends ToggleDialog
         });
 
         // create table to show matches and allow multiple selections
-        tableModel = new SimpleMatchesTableModel();
-        resultsTable = new JTable(tableModel);
+        matchTableModel = new SimpleMatchesTableModel();
+        matchTable = new JTable(matchTableModel);
 
         // add selection handler, to center/zoom view
-        resultsTable.getSelectionModel().addListSelectionListener(
+        matchTable.getSelectionModel().addListSelectionListener(
                 new MatchListSelectionHandler());
-        resultsTable.getColumnModel().getSelectionModel().addListSelectionListener(
+        matchTable.getColumnModel().getSelectionModel().addListSelectionListener(
                 new MatchListSelectionHandler());
 
         // FIXME: doesn't work right now
-        resultsTable.getColumnModel().getColumn(0).setCellRenderer(new OsmPrimitivRenderer());
-        resultsTable.getColumnModel().getColumn(1).setCellRenderer(new OsmPrimitivRenderer());
-        resultsTable.getColumnModel().getColumn(4).setCellRenderer(new ColorTableCellRenderer("Tags"));
-
-        resultsTable.addMouseListener(new DoubleClickHandler());
+        matchTable.getColumnModel().getColumn(0).setCellRenderer(new OsmPrimitivRenderer());
+        matchTable.getColumnModel().getColumn(1).setCellRenderer(new OsmPrimitivRenderer());
+        matchTable.getColumnModel().getColumn(4).setCellRenderer(new ColorTableCellRenderer("Tags"));
         
-        resultsTable.setRowSelectionAllowed(true);
-        resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        matchTable.setRowSelectionAllowed(true);
+        matchTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+
+        referenceOnlyList = new JList();
+        subjectOnlyList = new JList();
+        
+        referenceOnlyListModel = new UnmatchedListModel();
+        referenceOnlyList = new JList(referenceOnlyListModel);
+        referenceOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        referenceOnlyList.setCellRenderer(new OsmPrimitivRenderer());
+        referenceOnlyList.setTransferHandler(null); // no drag & drop
+        
+        subjectOnlyListModel = new UnmatchedListModel();
+        subjectOnlyList = new JList(subjectOnlyListModel);
+        subjectOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        subjectOnlyList.setCellRenderer(new OsmPrimitivRenderer());
+        subjectOnlyList.setTransferHandler(null); // no drag & drop
+        
+        DoubleClickHandler dblClickHandler = new DoubleClickHandler();
+        matchTable.addMouseListener(dblClickHandler);
+        referenceOnlyList.addMouseListener(dblClickHandler);
+        subjectOnlyList.addMouseListener(dblClickHandler);
+
+        tabbedPane = new JTabbedPane();
+        tabbedPane.addTab(tr("Matches"), matchTable);
+        tabbedPane.addTab(tr("Reference only"), referenceOnlyList);
+        tabbedPane.addTab(tr("Subject only"), subjectOnlyList);
 
         conflateAction = new ConflateAction();
         final SideButton conflateButton = new SideButton(conflateAction);
@@ -105,11 +129,24 @@ public class ConflationToggleDialog extends ToggleDialog
 //            }
 //        });
         
-        deleteAction = new DeleteAction();
-        createLayout(resultsTable, true, Arrays.asList(new SideButton[]{
+        removeAction = new RemoveAction();
+        
+        // add listeners to update enable state of buttons
+        tabbedPane.addChangeListener(conflateAction);
+        tabbedPane.addChangeListener(removeAction);
+        referenceOnlyList.addListSelectionListener(conflateAction);
+        referenceOnlyList.addListSelectionListener(removeAction);
+        subjectOnlyList.addListSelectionListener(conflateAction);
+        subjectOnlyList.addListSelectionListener(removeAction);
+        
+        UnmatchedListDataListener unmatchedListener = new UnmatchedListDataListener();
+        subjectOnlyListModel.addListDataListener(unmatchedListener);
+        referenceOnlyListModel.addListDataListener(unmatchedListener);
+        
+        createLayout(tabbedPane, true, Arrays.asList(new SideButton[]{
                     new SideButton(new ConfigureAction()),
                     conflateButton,
-                    new SideButton(deleteAction)
+                    new SideButton(removeAction)
 //                    new SideButton("Replace Geometry", false),
 //                    new SideButton("Merge Tags", false),
 //                    new SideButton("Remove", false)
@@ -118,7 +155,7 @@ public class ConflationToggleDialog extends ToggleDialog
 
     @Override
     public void simpleMatchListChanged(SimpleMatchList list) {
-        updateTitle();
+        updateTabTitles();
     }
 
     @Override
@@ -131,7 +168,7 @@ public class ConflationToggleDialog extends ToggleDialog
         if (tableSelection.containsAll(selected) && tableSelection.size() == selected.size())
             return;
         
-        ListSelectionModel lsm = resultsTable.getSelectionModel();
+        ListSelectionModel lsm = matchTable.getSelectionModel();
         lsm.setValueIsAdjusting(true);
         lsm.clearSelection();
         for (SimpleMatch c : selected) {
@@ -141,11 +178,34 @@ public class ConflationToggleDialog extends ToggleDialog
         lsm.setValueIsAdjusting(false);
     }
 
-    private void updateTitle() {
-        if (matches.size() > 0)
-            setTitle(tr(TITLE_PREFIX + marktr(": {0} matches"), matches.size()));
-        else
-            setTitle(TITLE_PREFIX);    
+    private void updateTabTitles() {
+        tabbedPane.setTitleAt(tabbedPane.indexOfComponent(matchTable),
+                tr(marktr("Matches ({0})"), matches.size()));
+        tabbedPane.setTitleAt(tabbedPane.indexOfComponent(referenceOnlyList),
+                tr(marktr("Reference only ({0})"), referenceOnlyListModel.size()));
+        tabbedPane.setTitleAt(tabbedPane.indexOfComponent(subjectOnlyList),
+                tr(marktr("Subject only ({0})"), subjectOnlyListModel.size()));
+    }
+    
+    private void selectAndZoomToSelectedMatches() {
+        Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
+        Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
+        for (SimpleMatch c : matches.getSelected()) {
+            refSelected.add(c.getReferenceObject());
+            subSelected.add(c.getSubjectObject());
+        }
+
+        // select objects
+        settings.getReferenceDataSet().clearSelection();
+        settings.getSubjectDataSet().clearSelection();
+        settings.getReferenceDataSet().addSelected(refSelected);
+        settings.getSubjectDataSet().addSelected(subSelected);
+
+        // zoom/center on selection
+        Collection<OsmPrimitive> allSelected = new HashSet<OsmPrimitive>();
+        allSelected.addAll(refSelected);
+        allSelected.addAll(subSelected);
+        AutoScaleAction.zoomTo(allSelected);
     }
     
     class DoubleClickHandler extends MouseAdapter {
@@ -154,24 +214,17 @@ public class ConflationToggleDialog extends ToggleDialog
             if (e.getClickCount() < 2 || !SwingUtilities.isLeftMouseButton(e))
                 return;
 
-            Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
-            Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
-            for (SimpleMatch c : matches.getSelected()) {
-                refSelected.add(c.getReferenceObject());
-                subSelected.add(c.getSubjectObject());
+            if (tabbedPane.getSelectedComponent().equals(matchTable)) {
+                selectAndZoomToSelectedMatches();
+            } else if (tabbedPane.getSelectedComponent().equals(referenceOnlyList)) {
+                List<OsmPrimitive> sel = referenceOnlyList.getSelectedValuesList();
+                settings.getReferenceDataSet().setSelected(sel);
+                AutoScaleAction.zoomTo(sel);
+            } else if (tabbedPane.getSelectedComponent().equals(subjectOnlyList)) {
+                List<OsmPrimitive> sel = subjectOnlyList.getSelectedValuesList();
+                settings.getSubjectDataSet().setSelected(sel);
+                AutoScaleAction.zoomTo(sel);
             }
-            
-            // select objects
-            settings.getReferenceDataSet().clearSelection();
-            settings.getSubjectDataSet().clearSelection();
-            settings.getReferenceDataSet().addSelected(refSelected);
-            settings.getSubjectDataSet().addSelected(subSelected);
-
-            // zoom/center on selection
-            Collection<OsmPrimitive> allSelected = new HashSet<OsmPrimitive>();
-            allSelected.addAll(refSelected);
-            allSelected.addAll(subSelected);
-            AutoScaleAction.zoomTo(allSelected);
         }
     }
 
@@ -200,7 +253,7 @@ public class ConflationToggleDialog extends ToggleDialog
     }
 
     private Collection<SimpleMatch> getSelectedFromTable() {
-        ListSelectionModel lsm = resultsTable.getSelectionModel();
+        ListSelectionModel lsm = matchTable.getSelectionModel();
         Collection<SimpleMatch> selMatches = new HashSet<SimpleMatch>();
         for (int i = lsm.getMinSelectionIndex(); i <= lsm.getMaxSelectionIndex(); i++) {
             if (lsm.isSelectedIndex(i) && i < matches.size()) {
@@ -296,9 +349,9 @@ public class ConflationToggleDialog extends ToggleDialog
     /**
      * Command to delete selected matches.
      */
-    class DeleteCommand extends Command {
+    class RemoveMatchCommand extends Command {
         private Collection<SimpleMatch> toRemove;
-        public DeleteCommand(Collection<SimpleMatch> toRemove) {
+        public RemoveMatchCommand(Collection<SimpleMatch> toRemove) {
             this.toRemove = toRemove;
         }
         
@@ -326,25 +379,88 @@ public class ConflationToggleDialog extends ToggleDialog
             return ImageProvider.get("dialogs", "delete");
         }
     }
-    
-    class DeleteAction extends JosmAction implements SimpleMatchListListener {
 
-        public DeleteAction() {
-            super(tr("Delete"), "dialogs/delete", tr("Remove selected matches"),
+    class RemoveUnmatchedObjectCommand extends Command {
+        private UnmatchedListModel model;
+        private Collection<OsmPrimitive> objects;
+
+        public RemoveUnmatchedObjectCommand(UnmatchedListModel model,
+                Collection<OsmPrimitive> objects) {
+            this.model = model;
+            this.objects = objects;
+        }
+        
+        @Override
+        public boolean executeCommand() {
+            return model.removeAll(objects);
+        }
+        
+        @Override
+        public void undoCommand() {
+            model.addAll(objects);
+        }
+        
+        @Override
+        public void fillModifiedData(Collection<OsmPrimitive> modified, Collection<OsmPrimitive> deleted, Collection<OsmPrimitive> added) {
+        }
+
+        @Override
+        public String getDescriptionText() {
+            return tr(marktr("Remove {0} unmatched objects"), objects.size());
+        }
+        
+        @Override
+        public Icon getDescriptionIcon() {
+            return ImageProvider.get("dialogs", "delete");
+        }
+        
+        @Override
+        public Collection<OsmPrimitive> getParticipatingPrimitives() {
+            return objects;
+        }
+    }    
+    
+    class RemoveAction extends JosmAction implements SimpleMatchListListener, ChangeListener, ListSelectionListener {
+
+        public RemoveAction() {
+            super(tr("Remove"), "dialogs/delete", tr("Remove selected matches"),
                     null, false);
         }
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.main.undoRedo.add(new DeleteCommand(matches.getSelected()));
+            Component selComponent = tabbedPane.getSelectedComponent();
+            if (selComponent.equals(matchTable)) {
+                Main.main.undoRedo.add(new RemoveMatchCommand(matches.getSelected()));
+            } else if (selComponent.equals(referenceOnlyList)) {
+                Main.main.undoRedo.add(
+                        new RemoveUnmatchedObjectCommand(referenceOnlyListModel,
+                                referenceOnlyList.getSelectedValuesList()));
+            } else if (selComponent.equals(subjectOnlyList)) {
+                Main.main.undoRedo.add(
+                        new RemoveUnmatchedObjectCommand(subjectOnlyListModel,
+                                subjectOnlyList.getSelectedValuesList()));
+            }
         }
 
         @Override
         public void updateEnabledState() {
-            if (matches != null && matches.getSelected() != null &&
-                    !matches.getSelected().isEmpty())
-                setEnabled(true);
-            else
+            Component selComponent = tabbedPane.getSelectedComponent();
+            if (selComponent.equals(matchTable)) {
+                if (matches != null && matches.getSelected() != null &&
+                        !matches.getSelected().isEmpty())
+                    setEnabled(true);
+                else
+                    setEnabled(false);
+            } else if (selComponent.equals(referenceOnlyList) &&
+                       !referenceOnlyList.getSelectedValuesList().isEmpty()) {
+                    setEnabled(true);
+            } else if (selComponent.equals(subjectOnlyList) &&
+                       !subjectOnlyList.getSelectedValuesList().isEmpty()) {
+                    setEnabled(true);
+            } else {
                 setEnabled(false);
+            }
+            
         }
         @Override
         public void simpleMatchListChanged(SimpleMatchList list) {
@@ -354,11 +470,19 @@ public class ConflationToggleDialog extends ToggleDialog
         public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
             updateEnabledState();
         }
+
+        @Override
+        public void stateChanged(ChangeEvent ce) {
+            updateEnabledState();
+        }
         
-        
+        @Override
+        public void valueChanged(ListSelectionEvent lse) {
+            updateEnabledState();
+        }
     }
     
-    class ConflateAction extends JosmAction implements SimpleMatchListListener {
+    class ConflateAction extends JosmAction implements SimpleMatchListListener, ChangeListener, ListSelectionListener {
 
         public ConflateAction() {
             // TODO: make sure shortcuts make sense
@@ -417,7 +541,8 @@ public class ConflationToggleDialog extends ToggleDialog
         
         @Override
         public void updateEnabledState() {
-            if (matches != null && matches.getSelected() != null &&
+            if (tabbedPane.getSelectedComponent().equals(matchTable) &&
+                    matches != null && matches.getSelected() != null &&
                     !matches.getSelected().isEmpty())
                 setEnabled(true);
             else
@@ -432,6 +557,16 @@ public class ConflationToggleDialog extends ToggleDialog
         public void simpleMatchSelectionChanged(Collection<SimpleMatch> selected) {
             updateEnabledState();
         }
+
+        @Override
+        public void stateChanged(ChangeEvent ce) {
+            updateEnabledState();
+        }
+
+        @Override
+        public void valueChanged(ListSelectionEvent lse) {
+            updateEnabledState();
+        }
     }
 
     @Override
@@ -442,12 +577,16 @@ public class ConflationToggleDialog extends ToggleDialog
     public void primitivesRemoved(PrimitivesRemovedEvent event) {
         List<? extends OsmPrimitive> prims = event.getPrimitives();
         for (OsmPrimitive p : prims) {
+            // TODO: use hashmap
             for (SimpleMatch c : matches) {
                 if (c.getReferenceObject().equals(p) || c.getSubjectObject().equals(p)) {
                     matches.remove(c);
                     break;
                 }
             }
+            
+            referenceOnlyListModel.removeElement(p);
+            subjectOnlyListModel.removeElement(p);
         }
     }
 
@@ -593,11 +732,26 @@ public class ConflationToggleDialog extends ToggleDialog
 
     private void performMatching() {
         matches = generateMatches(settings);
-        updateTitle();
-        tableModel.setMatches(matches);
-        matches.addConflationListChangedListener(tableModel);
+
+        // populate unmatched objects
+        List<OsmPrimitive> referenceOnly = new ArrayList<OsmPrimitive>(settings.getReferenceSelection());
+        List<OsmPrimitive> subjectOnly = new ArrayList<OsmPrimitive>(settings.getSubjectSelection());
+        for (SimpleMatch match : matches) {
+            referenceOnly.remove(match.getReferenceObject());
+            subjectOnly.remove(match.getSubjectObject());
+        }
+        
+        referenceOnlyListModel.clear();
+        referenceOnlyListModel.addAll(referenceOnly);
+        subjectOnlyListModel.clear();
+        subjectOnlyListModel.addAll(subjectOnly);
+        
+        updateTabTitles();
+        
+        matchTableModel.setMatches(matches);
+        matches.addConflationListChangedListener(matchTableModel);
         matches.addConflationListChangedListener(conflateAction);
-        matches.addConflationListChangedListener(deleteAction);
+        matches.addConflationListChangedListener(removeAction);
         matches.addConflationListChangedListener(this);
         settings.getSubjectDataSet().addDataSetListener(this);
         settings.getReferenceDataSet().addDataSetListener(this);
@@ -614,5 +768,41 @@ public class ConflationToggleDialog extends ToggleDialog
 //        matches.addConflationListChangedListener(conflationLayer);
 
                 
+    }
+    
+    class UnmatchedListModel extends DefaultListModel {
+
+        private void addAll(Collection<OsmPrimitive> objects) {
+            for (OsmPrimitive p : objects) {
+                addElement(p);
+            }
+        }
+
+        private boolean removeAll(Collection<OsmPrimitive> objects) {
+            boolean changed = false;
+            for (OsmPrimitive p : objects) {
+                changed = changed || removeElement(p);
+            }
+            return changed;
+        }
+    }
+    
+    class UnmatchedListDataListener implements ListDataListener {
+
+        @Override
+        public void intervalAdded(ListDataEvent lde) {
+            updateTabTitles();
+        }
+
+        @Override
+        public void intervalRemoved(ListDataEvent lde) {
+            updateTabTitles();
+        }
+
+        @Override
+        public void contentsChanged(ListDataEvent lde) {
+            updateTabTitles();
+        }
+        
     }
 }
