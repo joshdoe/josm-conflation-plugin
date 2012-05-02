@@ -11,8 +11,6 @@ import java.awt.Rectangle;
 import java.awt.event.*;
 import java.awt.geom.Point2D;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.table.TableCellRenderer;
@@ -20,6 +18,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.command.Command;
+import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.event.*;
@@ -30,10 +29,8 @@ import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
-import org.openstreetmap.josm.plugins.conflation.ConflateCommand.UserCancelException;
-import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryCommand;
+import org.openstreetmap.josm.plugins.conflation.ConflateMatchCommand.UserCancelException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
-import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryUtils;
 import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -48,9 +45,9 @@ public class ConflationToggleDialog extends ToggleDialog
     JTabbedPane tabbedPane;
     JTable matchTable;
     JList referenceOnlyList;
-    UnmatchedListModel referenceOnlyListModel;
+    UnmatchedObjectListModel referenceOnlyListModel;
     JList subjectOnlyList;
-    UnmatchedListModel subjectOnlyListModel;
+    UnmatchedObjectListModel subjectOnlyListModel;
     ConflationLayer conflationLayer;
     SimpleMatchesTableModel matchTableModel;
     SimpleMatchList matches;
@@ -100,13 +97,13 @@ public class ConflationToggleDialog extends ToggleDialog
         referenceOnlyList = new JList();
         subjectOnlyList = new JList();
 
-        referenceOnlyListModel = new UnmatchedListModel();
+        referenceOnlyListModel = new UnmatchedObjectListModel();
         referenceOnlyList = new JList(referenceOnlyListModel);
         referenceOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         referenceOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         referenceOnlyList.setTransferHandler(null); // no drag & drop
 
-        subjectOnlyListModel = new UnmatchedListModel();
+        subjectOnlyListModel = new UnmatchedObjectListModel();
         subjectOnlyList = new JList(subjectOnlyListModel);
         subjectOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         subjectOnlyList.setCellRenderer(new OsmPrimitivRenderer());
@@ -384,10 +381,10 @@ public class ConflationToggleDialog extends ToggleDialog
     }
 
     class RemoveUnmatchedObjectCommand extends Command {
-        private UnmatchedListModel model;
+        private UnmatchedObjectListModel model;
         private Collection<OsmPrimitive> objects;
 
-        public RemoveUnmatchedObjectCommand(UnmatchedListModel model,
+        public RemoveUnmatchedObjectCommand(UnmatchedObjectListModel model,
                 Collection<OsmPrimitive> objects) {
             this.model = model;
             this.objects = objects;
@@ -496,18 +493,31 @@ public class ConflationToggleDialog extends ToggleDialog
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            //FIXME: should layer listen for selection change?
-            
-            Collection<Command> cmds = new LinkedList<Command>();
+            if (tabbedPane.getSelectedComponent().equals(matchTable))
+                conflateMatchActionPerformed();
+            else if (tabbedPane.getSelectedComponent().equals(referenceOnlyList))
+                conflateUnmatchedObjectActionPerformed();
+        }
+
+        private void conflateUnmatchedObjectActionPerformed() {
+            List<OsmPrimitive> unmatchedObjects = referenceOnlyList.getSelectedValuesList();
+            Command cmd = new ConflateUnmatchedObjectCommand(settings.getReferenceLayer(),
+                    settings.getSubjectLayer(), unmatchedObjects, referenceOnlyListModel);
+            Main.main.undoRedo.add(cmd);
+            // TODO: change layer and select newly copied objects?
+        }
+
+        private void conflateMatchActionPerformed() {
             SimpleMatch nextSelection = matches.findNextSelection();
+            List<Command> cmds = new LinkedList<Command>();
             try {
                 // iterate over selected matches in reverse order since they will be removed as we go
                 List<SimpleMatch> selMatches = new ArrayList(matches.getSelected());
                 for (SimpleMatch c : selMatches) {
 
-                    ConflateCommand conflateCommand;
+                    ConflateMatchCommand conflateCommand;
                     try {
-                        conflateCommand = new ConflateCommand(c, matches, settings);
+                        conflateCommand = new ConflateMatchCommand(c, matches, settings);
                     } catch (UserCancelException ex) {
                         break;
                     }
@@ -538,6 +548,9 @@ public class ConflationToggleDialog extends ToggleDialog
             if (tabbedPane.getSelectedComponent().equals(matchTable) &&
                     matches != null && matches.getSelected() != null &&
                     !matches.getSelected().isEmpty())
+                setEnabled(true);
+            else if (tabbedPane.getSelectedComponent().equals(referenceOnlyList) &&
+                    !referenceOnlyList.getSelectedValuesList().isEmpty())
                 setEnabled(true);
             else
                 setEnabled(false);
@@ -762,23 +775,6 @@ public class ConflationToggleDialog extends ToggleDialog
 //        matches.addConflationListChangedListener(conflationLayer);
 
                 
-    }
-
-    class UnmatchedListModel extends DefaultListModel {
-
-        private void addAll(Collection<OsmPrimitive> objects) {
-            for (OsmPrimitive p : objects) {
-                addElement(p);
-            }
-        }
-
-        private boolean removeAll(Collection<OsmPrimitive> objects) {
-            boolean changed = false;
-            for (OsmPrimitive p : objects) {
-                changed = changed || removeElement(p);
-            }
-            return changed;
-        }
     }
 
     class UnmatchedListDataListener implements ListDataListener {

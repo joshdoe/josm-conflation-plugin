@@ -12,7 +12,6 @@ import org.openstreetmap.josm.command.PseudoCommand;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.PrimitiveData;
-import org.openstreetmap.josm.data.osm.visitor.MergeSourceBuildingVisitor;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryUtils;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -20,37 +19,24 @@ import org.openstreetmap.josm.tools.ImageProvider;
 /**
  * Command to conflate one object with another.
  */
-public class ConflateCommand extends Command {
+public class ConflateMatchCommand extends Command {
     private final SimpleMatch match;
     private final SimpleMatchList matches;
-    private final SimpleMatchSettings settings;
     private final Command replaceCommand;
     private AddPrimitivesCommand addPrimitivesCommand = null;
-    
-    public ConflateCommand(SimpleMatch match,
+
+    public ConflateMatchCommand(SimpleMatch match,
             SimpleMatchList matches, SimpleMatchSettings settings) throws UserCancelException {
         super(settings.getSubjectLayer());
         this.match = match;
         this.matches = matches;
-        this.settings = settings;
         
         DataSet sourceDataSet = settings.getReferenceDataSet();
         DataSet targetDataSet = settings.getSubjectDataSet();
         // copy objects from reference dataset
         if (targetDataSet != sourceDataSet) {
             // TODO: use MergeCommand instead?
-            Collection<OsmPrimitive> origSelection = sourceDataSet.getSelected();
-            sourceDataSet.setSelected(match.getReferenceObject());
-            MergeSourceBuildingVisitor builder = new MergeSourceBuildingVisitor(sourceDataSet);
-        
-            DataSet newDataSet = builder.build();
-            //restore selection
-            sourceDataSet.setSelected(origSelection);
-            
-            List<PrimitiveData> newObjects = new ArrayList<PrimitiveData>();
-            for (OsmPrimitive p : newDataSet.allPrimitives()) {
-                newObjects.add(p.save());
-            }
+            List<PrimitiveData> newObjects = ConflationUtils.copyObjects(sourceDataSet, match.getReferenceObject());
 
             // FIXME: bad form to execute command in constructor, how to fix?
             addPrimitivesCommand = new AddPrimitivesCommand(newObjects, settings.getSubjectLayer());
