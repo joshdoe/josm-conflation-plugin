@@ -41,7 +41,7 @@ public class SettingsDialog extends ExtendedDialog {
     public SettingsDialog() {
         super(Main.parent,
                 tr("Configure conflation settings"),
-                new String[]{tr("OK"), tr("Cancel")},
+                new String[]{tr("Generate matches"), tr("Cancel")},
                 false);
         initComponents();
     }
