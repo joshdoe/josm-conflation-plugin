@@ -4,6 +4,7 @@ package org.openstreetmap.josm.plugins.conflation;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.List;
 import javax.swing.*;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
@@ -31,8 +32,8 @@ public class SettingsDialog extends ExtendedDialog {
     private JPanel subjectPanel;
     private JLabel subjectSelectionLabel;
     
-    ArrayList<OsmPrimitive> subjectSelection = null;
-    ArrayList<OsmPrimitive> referenceSelection = null;
+    List<OsmPrimitive> subjectSelection = null;
+    List<OsmPrimitive> referenceSelection = null;
     OsmDataLayer referenceLayer;
     DataSet subjectDataSet;
     OsmDataLayer subjectLayer;
@@ -43,6 +44,8 @@ public class SettingsDialog extends ExtendedDialog {
                 tr("Configure conflation settings"),
                 new String[]{tr("Generate matches"), tr("Cancel")},
                 false);
+        referenceSelection = new ArrayList<OsmPrimitive>();
+        subjectSelection = new ArrayList<OsmPrimitive>();
         initComponents();
     }
 
@@ -94,11 +97,22 @@ public class SettingsDialog extends ExtendedDialog {
         setupDialog();
     }
 
+    /**
+     * Matches are actually generated in windowClosed event in ConflationToggleDialog
+     *
+     * @param buttonIndex
+     * @param evt
+     */
     @Override
     protected void buttonAction(int buttonIndex, ActionEvent evt) {
-        super.buttonAction(buttonIndex, evt);
+        // "Generate matches" as clicked
         if (buttonIndex == 0) {
+            if (referenceSelection.isEmpty() || subjectSelection.isEmpty()) {
+                JOptionPane.showMessageDialog(Main.parent, tr("Selections must be made for both reference and subject."), tr("Incomplete selections"), JOptionPane.ERROR_MESSAGE);
+                return;
+            }
         }
+        super.buttonAction(buttonIndex, evt);
     }
 
     /**
@@ -181,7 +195,8 @@ public class SettingsDialog extends ExtendedDialog {
                 JOptionPane.showMessageDialog(Main.parent, tr("No valid OSM data layer present."), tr("Error freezing selection"), JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            subjectSelection = new ArrayList<OsmPrimitive>(subjectDataSet.getSelected());
+            subjectSelection.clear();
+            subjectSelection.addAll(subjectDataSet.getSelected());
             if (subjectSelection.isEmpty()) {
                 JOptionPane.showMessageDialog(Main.parent, tr("Nothing is selected, please try again."), tr("Empty selection"), JOptionPane.ERROR_MESSAGE);
                 return;
@@ -210,7 +225,8 @@ public class SettingsDialog extends ExtendedDialog {
                 JOptionPane.showMessageDialog(Main.parent, tr("No valid OSM data layer present."), tr("Error freezing selection"), JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            referenceSelection = new ArrayList<OsmPrimitive>(referenceDataSet.getSelected());
+            referenceSelection.clear();
+            referenceSelection.addAll(referenceDataSet.getSelected());
             if (referenceSelection.isEmpty()) {
                 JOptionPane.showMessageDialog(Main.parent, tr("Nothing is selected, please try again."), tr("Empty selection"), JOptionPane.ERROR_MESSAGE);
                 return;
@@ -227,7 +243,7 @@ public class SettingsDialog extends ExtendedDialog {
         int numWays = 0;
         int numRelations = 0;
 
-        if (subjectSelection != null) {
+        if (!subjectSelection.isEmpty()) {
             for (OsmPrimitive p : subjectSelection) {
                 if (p instanceof Node) {
                     numNodes++;
@@ -244,7 +260,7 @@ public class SettingsDialog extends ExtendedDialog {
         numNodes = 0;
         numWays = 0;
         numRelations = 0;
-        if (referenceSelection != null) {
+        if (!referenceSelection.isEmpty()) {
             for (OsmPrimitive p : referenceSelection) {
                 if (p instanceof Node) {
                     numNodes++;

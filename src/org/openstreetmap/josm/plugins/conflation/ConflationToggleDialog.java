@@ -69,6 +69,7 @@ public class ConflationToggleDialog extends ToggleDialog
 
             @Override
             public void windowClosed(WindowEvent e) {
+                // "Generate matches" was clicked
                 if (settingsDialog.getValue() == 1) {
                     settings = settingsDialog.getSettings();
                     performMatching();

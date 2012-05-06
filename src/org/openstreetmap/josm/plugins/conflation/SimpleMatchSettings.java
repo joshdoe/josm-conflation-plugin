@@ -1,7 +1,7 @@
 // License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
-import java.util.ArrayList;
+import java.util.List;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -11,8 +11,8 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
  * @author joshdoe
  */
 public class SimpleMatchSettings {
-    private ArrayList<OsmPrimitive> subjectSelection;
-    private ArrayList<OsmPrimitive> referenceSelection;
+    private List<OsmPrimitive> subjectSelection;
+    private List<OsmPrimitive> referenceSelection;
     private OsmDataLayer referenceLayer;
     private DataSet subjectDataSet;
     private OsmDataLayer subjectLayer;
@@ -21,28 +21,28 @@ public class SimpleMatchSettings {
     /**
      * @return the subjectSelection
      */
-    public ArrayList<OsmPrimitive> getSubjectSelection() {
+    public List<OsmPrimitive> getSubjectSelection() {
         return subjectSelection;
     }
 
     /**
      * @param subjectSelection the subjectSelection to set
      */
-    public void setSubjectSelection(ArrayList<OsmPrimitive> subjectSelection) {
+    public void setSubjectSelection(List<OsmPrimitive> subjectSelection) {
         this.subjectSelection = subjectSelection;
     }
 
     /**
      * @return the referenceSelection
      */
-    public ArrayList<OsmPrimitive> getReferenceSelection() {
+    public List<OsmPrimitive> getReferenceSelection() {
         return referenceSelection;
     }
 
     /**
      * @param referenceSelection the referenceSelection to set
      */
-    public void setReferenceSelection(ArrayList<OsmPrimitive> referenceSelection) {
+    public void setReferenceSelection(List<OsmPrimitive> referenceSelection) {
         this.referenceSelection = referenceSelection;
     }
 
