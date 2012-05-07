@@ -37,8 +37,7 @@ class DisambiguationMatch implements Comparable {
         if (score < other.score) { return 1; }
         if (target.compareTo(other.target) != 0) { return target.compareTo(other.target); } 
         if (candidate.compareTo(other.candidate) != 0) { return candidate.compareTo(other.candidate); }
-        Assert.shouldNeverReachHere("Unexpected duplicate match?"); 
-        return -1;
+        return 0;
     }
     public static SortedSet createDisambiguationMatches(Map targetToMatchesMap, TaskMonitor monitor) {
         TreeSet set = new TreeSet();
