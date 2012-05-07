@@ -18,7 +18,6 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.event.*;
@@ -188,25 +187,53 @@ public class ConflationToggleDialog extends ToggleDialog
                 tr(marktr("Subject only ({0})"), subjectOnlyListModel.size()));
     }
 
-    private void selectAndZoomToSelectedMatches() {
-        Collection<OsmPrimitive> refSelected = new HashSet<OsmPrimitive>();
-        Collection<OsmPrimitive> subSelected = new HashSet<OsmPrimitive>();
-        for (SimpleMatch c : matches.getSelected()) {
-            refSelected.add(c.getReferenceObject());
-            subSelected.add(c.getSubjectObject());
+    private List<OsmPrimitive> getSelectedReferencePrimitives() {
+        List<OsmPrimitive> selection = new ArrayList<OsmPrimitive>();
+        if (tabbedPane.getSelectedComponent().equals(matchTable)) {
+            for (SimpleMatch c : matches.getSelected()) {
+                selection.add(c.getReferenceObject());
+            }
+        } else if (tabbedPane.getSelectedComponent().equals(referenceOnlyList)) {
+            selection.addAll(referenceOnlyList.getSelectedValuesList());
         }
+        return selection;
+    }
+
+    private List<OsmPrimitive> getSelectedSubjectPrimitives() {
+        List<OsmPrimitive> selection = new ArrayList<OsmPrimitive>();
+        if (tabbedPane.getSelectedComponent().equals(matchTable)) {
+            for (SimpleMatch c : matches.getSelected()) {
+                selection.add(c.getSubjectObject());
+            }
+        } else if (tabbedPane.getSelectedComponent().equals(subjectOnlyList)) {
+            selection.addAll(subjectOnlyList.getSelectedValuesList());
+        }
+        return selection;
+    }
+
+    private Collection<OsmPrimitive> getAllSelectedPrimitives() {
+        Collection<OsmPrimitive> allSelected = new HashSet<OsmPrimitive>();
+        allSelected.addAll(getSelectedReferencePrimitives());
+        allSelected.addAll(getSelectedSubjectPrimitives());
+        return allSelected;
+    }
+
+    private void selectAndZoomToTableSelection() {
+        List<OsmPrimitive> refSelected = getSelectedReferencePrimitives();
+        List<OsmPrimitive> subSelected = getSelectedSubjectPrimitives();
 
         // select objects
-        settings.getReferenceDataSet().clearSelection();
-        settings.getSubjectDataSet().clearSelection();
-        settings.getReferenceDataSet().addSelected(refSelected);
-        settings.getSubjectDataSet().addSelected(subSelected);
+        if (!refSelected.isEmpty()) {
+            settings.getReferenceDataSet().clearSelection();
+            settings.getReferenceDataSet().addSelected(refSelected);
+        }
+        if (!subSelected.isEmpty()) {
+            settings.getSubjectDataSet().clearSelection();
+            settings.getSubjectDataSet().addSelected(subSelected);
+        }
 
         // zoom/center on selection
-        Collection<OsmPrimitive> allSelected = new HashSet<OsmPrimitive>();
-        allSelected.addAll(refSelected);
-        allSelected.addAll(subSelected);
-        AutoScaleAction.zoomTo(allSelected);
+        AutoScaleAction.zoomTo(getAllSelectedPrimitives());
     }
 
     class DoubleClickHandler extends MouseAdapter {
@@ -215,17 +242,7 @@ public class ConflationToggleDialog extends ToggleDialog
             if (e.getClickCount() < 2 || !SwingUtilities.isLeftMouseButton(e))
                 return;
 
-            if (tabbedPane.getSelectedComponent().equals(matchTable)) {
-                selectAndZoomToSelectedMatches();
-            } else if (tabbedPane.getSelectedComponent().equals(referenceOnlyList)) {
-                List<OsmPrimitive> sel = referenceOnlyList.getSelectedValuesList();
-                settings.getReferenceDataSet().setSelected(sel);
-                AutoScaleAction.zoomTo(sel);
-            } else if (tabbedPane.getSelectedComponent().equals(subjectOnlyList)) {
-                List<OsmPrimitive> sel = subjectOnlyList.getSelectedValuesList();
-                settings.getSubjectDataSet().setSelected(sel);
-                AutoScaleAction.zoomTo(sel);
-            }
+            selectAndZoomToTableSelection();
         }
     }
 
