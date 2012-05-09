@@ -759,8 +759,9 @@ public class ConflationToggleDialog extends ToggleDialog
         for (Map.Entry<OsmFeature, Matches> entry: map.entrySet()) {
             OsmFeature target = entry.getKey();
             OsmFeature subject = (OsmFeature)entry.getValue().getTopMatch();
-            list.add(new SimpleMatch(target.getPrimitive(), subject.getPrimitive(),
-                    entry.getValue().getTopScore()));
+            if (target != null && subject != null)
+                list.add(new SimpleMatch(target.getPrimitive(), subject.getPrimitive(),
+                        entry.getValue().getTopScore()));
         }
         
         monitor.finishTask();
