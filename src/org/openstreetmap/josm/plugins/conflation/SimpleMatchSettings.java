@@ -17,6 +17,7 @@ public class SimpleMatchSettings {
     private DataSet subjectDataSet;
     private OsmDataLayer subjectLayer;
     private DataSet referenceDataSet;
+    private String matchFinderMethod;
 
     /**
      * @return the subjectSelection
@@ -100,5 +101,19 @@ public class SimpleMatchSettings {
      */
     public void setReferenceDataSet(DataSet referenceDataSet) {
         this.referenceDataSet = referenceDataSet;
+    }
+
+    /**
+     * @return the matchFinderMethod
+     */
+    public String getMatchFinderMethod() {
+        return matchFinderMethod;
+    }
+
+    /**
+     * @param matchFinderMethod the matchFinderMethod to set
+     */
+    public void setMatchFinderMethod(String matchFinderMethod) {
+        this.matchFinderMethod = matchFinderMethod;
     }
 }

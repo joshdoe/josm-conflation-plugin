@@ -3,6 +3,7 @@ package org.openstreetmap.josm.plugins.conflation;
 
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
@@ -31,6 +32,7 @@ public class SettingsDialog extends ExtendedDialog {
     private JLabel subjectLayerLabel;
     private JPanel subjectPanel;
     private JLabel subjectSelectionLabel;
+    private JComboBox matchFinderComboBox;
     
     List<OsmPrimitive> subjectSelection = null;
     List<OsmPrimitive> referenceSelection = null;
@@ -38,6 +40,7 @@ public class SettingsDialog extends ExtendedDialog {
     DataSet subjectDataSet;
     OsmDataLayer subjectLayer;
     DataSet referenceDataSet;
+    String matchFinderMethod;
 
     public SettingsDialog() {
         super(Main.parent,
@@ -92,7 +95,24 @@ public class SettingsDialog extends ExtendedDialog {
         jPanel5.add(freezeSubjectButton);
         subjectPanel.add(jPanel5);
         pnl.add(subjectPanel);
-        
+
+        JPanel optionsPanel = new JPanel();
+        optionsPanel.setBorder(BorderFactory.createTitledBorder(tr("Settings")));
+        optionsPanel.setLayout(new BoxLayout(optionsPanel, BoxLayout.PAGE_AXIS));
+        String[] matchFinderStrings = {"DisambiguatingFCMatchFinder", "OneToOneFCMatchFinder" };
+        matchFinderComboBox = new JComboBox(matchFinderStrings);
+        matchFinderComboBox.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                matchFinderMethod = (String)matchFinderComboBox.getSelectedItem();
+            }
+        });
+        matchFinderComboBox.setSelectedIndex(0);
+        optionsPanel.add(new JLabel(tr("Match finder method")));
+        optionsPanel.add(matchFinderComboBox);
+        pnl.add(optionsPanel);
+
         setContent(pnl);
         setupDialog();
     }
@@ -126,6 +146,7 @@ public class SettingsDialog extends ExtendedDialog {
         settings.setSubjectDataSet(subjectDataSet);
         settings.setSubjectLayer(subjectLayer);
         settings.setSubjectSelection(subjectSelection);
+        settings.setMatchFinderMethod(matchFinderMethod);
         
         return settings;
     }
@@ -140,6 +161,7 @@ public class SettingsDialog extends ExtendedDialog {
         subjectDataSet = settings.getSubjectDataSet();
         subjectLayer = settings.getSubjectLayer();
         subjectSelection = settings.getSubjectSelection();
+        matchFinderMethod = settings.getMatchFinderMethod();
         update();
     }
 
@@ -275,5 +297,7 @@ public class SettingsDialog extends ExtendedDialog {
             referenceLayerLabel.setText(referenceLayer.getName());
             referenceSelectionLabel.setText(String.format("Rel.: %d / Ways: %d / Nodes: %d", numRelations, numWays, numNodes));
         }
+
+        matchFinderComboBox.setSelectedItem(matchFinderMethod);
     }
 }

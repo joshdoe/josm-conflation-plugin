@@ -745,8 +745,14 @@ public class ConflationToggleDialog extends ToggleDialog
         FeatureMatcher[] matchers = {centroid, identical};
         ChainMatcher chain = new ChainMatcher(matchers);
         BasicFCMatchFinder basicFinder = new BasicFCMatchFinder(chain);
-        DisambiguatingFCMatchFinder finder = new DisambiguatingFCMatchFinder(basicFinder);
-
+        FCMatchFinder finder;
+        // FIXME: use better method of specifying match finder
+        if (settings.getMatchFinderMethod().equals("DisambiguatingFCMatchFinder"))
+            finder = new DisambiguatingFCMatchFinder(basicFinder);
+        else if (settings.getMatchFinderMethod().equals("OneToOneFCMatchFinder"))
+            finder = new OneToOneFCMatchFinder(basicFinder);
+        else
+            finder = new DisambiguatingFCMatchFinder(basicFinder);
         // FIXME: ignore/filter duplicate objects (i.e. same object in both sets)
         // FIXME: fix match functions to work on point/linestring features as well
         // find matches
