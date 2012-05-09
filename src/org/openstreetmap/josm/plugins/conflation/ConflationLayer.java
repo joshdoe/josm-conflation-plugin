@@ -25,7 +25,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
  * A layer to show arrows and other symbols to indicate what primitives have been matched.
- *
+ * TODO: warn on closing layer?
  * @author joshdoe
  */
 public class ConflationLayer extends Layer implements LayerChangeListener {
