@@ -43,9 +43,9 @@ public class ConflationToggleDialog extends ToggleDialog
     public final static String PREF_PREFIX = "conflation";
     JTabbedPane tabbedPane;
     JTable matchTable;
-    JList referenceOnlyList;
+    UnmatchedJList referenceOnlyList;
     UnmatchedObjectListModel referenceOnlyListModel;
-    JList subjectOnlyList;
+    UnmatchedJList subjectOnlyList;
     UnmatchedObjectListModel subjectOnlyListModel;
     ConflationLayer conflationLayer;
     SimpleMatchesTableModel matchTableModel;
@@ -94,17 +94,14 @@ public class ConflationToggleDialog extends ToggleDialog
         matchTable.setRowSelectionAllowed(true);
         matchTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        referenceOnlyList = new JList();
-        subjectOnlyList = new JList();
-
         referenceOnlyListModel = new UnmatchedObjectListModel();
-        referenceOnlyList = new JList(referenceOnlyListModel);
+        referenceOnlyList = new UnmatchedJList(referenceOnlyListModel);
         referenceOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         referenceOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         referenceOnlyList.setTransferHandler(null); // no drag & drop
 
         subjectOnlyListModel = new UnmatchedObjectListModel();
-        subjectOnlyList = new JList(subjectOnlyListModel);
+        subjectOnlyList = new UnmatchedJList(subjectOnlyListModel);
         subjectOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         subjectOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         subjectOnlyList.setTransferHandler(null); // no drag & drop
@@ -280,7 +277,23 @@ public class ConflationToggleDialog extends ToggleDialog
         }
         return selMatches;
     }
-    
+
+    private class UnmatchedJList<E> extends JList {
+
+        public UnmatchedJList(ListModel listModel) {
+            super(listModel);
+        }
+
+        // TODO: remove this once JOSM uses Java 1.7
+        public List<E> getSelectedValuesList() {
+            List<E> list = new ArrayList<E>();
+            for (Object o : getSelectedValues()) {
+                list.add((E)o);
+            }
+            return list;
+        }
+    }
+
     protected static class ConflateMenuItem extends JMenuItem implements ActionListener {
         public ConflateMenuItem(String name) {
             super(name);
