@@ -70,7 +70,7 @@
                 <attribute name="Plugin-Icon" value="images/dialogs/conflation.png"/>
                 <attribute name="Plugin-Link" value="http://wiki.openstreetmap.org/wiki/JOSM/Plugins/Conflation" />
                 <attribute name="Plugin-Mainversion" value="${josm.required.version}" />
-                <attribute name="Plugin-Requires" value="jts"/>
+                <attribute name="Plugin-Requires" value="jts;utilsplugin2"/>
                 <attribute name="Plugin-Version" value="${plugin.version}" />	
             </manifest>
         </jar> 
