@@ -28,11 +28,13 @@ import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.plugins.conflation.ConflateMatchCommand.UserCancelException;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
 import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.Shortcut;
 
 public class ConflationToggleDialog extends ToggleDialog
@@ -54,6 +56,8 @@ public class ConflationToggleDialog extends ToggleDialog
     SettingsDialog settingsDialog;
     ConflateAction conflateAction;
     RemoveAction removeAction;
+    ZoomToListSelectionAction zoomToListSelectionAction;
+    SelectionPopup selectionPopup;
 
     public ConflationToggleDialog(ConflationPlugin conflationPlugin) {
         // TODO: create shortcut?
@@ -105,6 +109,19 @@ public class ConflationToggleDialog extends ToggleDialog
         subjectOnlyList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         subjectOnlyList.setCellRenderer(new OsmPrimitivRenderer());
         subjectOnlyList.setTransferHandler(null); // no drag & drop
+
+        //add popup menu for zoom on selection
+        zoomToListSelectionAction = new ZoomToListSelectionAction();
+        selectionPopup = new SelectionPopup();
+        SelectionPopupMenuLauncher launcher = new SelectionPopupMenuLauncher();
+        matchTable.addMouseListener(launcher);
+        subjectOnlyList.addMouseListener(launcher);
+        referenceOnlyList.addMouseListener(launcher);
+
+        //on enter key zoom to selection
+        InputMapUtils.addEnterAction(matchTable, zoomToListSelectionAction);
+        InputMapUtils.addEnterAction(subjectOnlyList, zoomToListSelectionAction);
+        InputMapUtils.addEnterAction(referenceOnlyList, zoomToListSelectionAction);
 
         DoubleClickHandler dblClickHandler = new DoubleClickHandler();
         matchTable.addMouseListener(dblClickHandler);
@@ -186,6 +203,9 @@ public class ConflationToggleDialog extends ToggleDialog
 
     private List<OsmPrimitive> getSelectedReferencePrimitives() {
         List<OsmPrimitive> selection = new ArrayList<OsmPrimitive>();
+        if (tabbedPane == null || tabbedPane.getSelectedComponent() == null)
+            return selection;
+        
         if (tabbedPane.getSelectedComponent().equals(matchTable)) {
             for (SimpleMatch c : matches.getSelected()) {
                 selection.add(c.getReferenceObject());
@@ -198,6 +218,9 @@ public class ConflationToggleDialog extends ToggleDialog
 
     private List<OsmPrimitive> getSelectedSubjectPrimitives() {
         List<OsmPrimitive> selection = new ArrayList<OsmPrimitive>();
+        if (tabbedPane == null || tabbedPane.getSelectedComponent() == null)
+            return selection;
+
         if (tabbedPane.getSelectedComponent().equals(matchTable)) {
             for (SimpleMatch c : matches.getSelected()) {
                 selection.add(c.getSubjectObject());
@@ -604,6 +627,78 @@ public class ConflationToggleDialog extends ToggleDialog
         @Override
         public void valueChanged(ListSelectionEvent lse) {
             updateEnabledState();
+        }
+    }
+
+    /**
+     * The action for zooming to the primitives which are currently selected in
+     * the list (either matches or single primitives).
+     *
+     */
+    class ZoomToListSelectionAction extends JosmAction implements ListSelectionListener{
+        public ZoomToListSelectionAction() {
+            super(tr("Zoom to selection"), "dialogs/autoscale/selection", tr("Zoom to selected element(s)"),
+                    null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (matchTable == null)
+                return;
+
+            Collection<OsmPrimitive> sel = getAllSelectedPrimitives();
+            if (sel.isEmpty())
+                return;
+            AutoScaleAction.zoomTo(sel);
+        }
+
+        @Override
+        public void updateEnabledState() {
+            setEnabled(!getAllSelectedPrimitives().isEmpty());
+        }
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            updateEnabledState();
+        }
+    }
+    
+    /**
+     * The popup menu launcher
+     */
+    class SelectionPopupMenuLauncher extends PopupMenuLauncher {
+
+        @Override
+        public void launch(MouseEvent evt) {
+            //if none selected, select row under cursor
+            Component c = tabbedPane.getSelectedComponent();
+            if (getAllSelectedPrimitives().isEmpty()) {
+                if (c == matchTable) {
+                    //FIXME: this doesn't seem to be working
+                    int row = matchTable.rowAtPoint(evt.getPoint());
+                    matchTable.getSelectionModel().addSelectionInterval(row, row);
+                }
+                else if (c == subjectOnlyList || c == referenceOnlyList) {
+                    int idx = ((UnmatchedJList)c).locationToIndex(evt.getPoint());
+                    if (idx < 0)
+                        return;
+                    ((UnmatchedJList)c).setSelectedIndex(idx);
+                }
+            }
+            
+            selectionPopup.show(c, evt.getX(), evt.getY());
+        }
+    }
+
+    /**
+     * The popup menu for the selection list
+     */
+    class SelectionPopup extends JPopupMenu {
+        public SelectionPopup() {
+            matchTable.getSelectionModel().addListSelectionListener(zoomToListSelectionAction);
+            subjectOnlyList.addListSelectionListener(zoomToListSelectionAction);
+            referenceOnlyList.addListSelectionListener(zoomToListSelectionAction);
+            add(zoomToListSelectionAction);
         }
     }
 
