@@ -238,22 +238,16 @@ public class ConflationToggleDialog extends ToggleDialog
         return allSelected;
     }
 
-    private void selectAndZoomToTableSelection() {
+    private void selectAllListSelectedPrimitives() {
         List<OsmPrimitive> refSelected = getSelectedReferencePrimitives();
         List<OsmPrimitive> subSelected = getSelectedSubjectPrimitives();
 
-        // select objects
-        if (!refSelected.isEmpty()) {
-            settings.getReferenceDataSet().clearSelection();
-            settings.getReferenceDataSet().addSelected(refSelected);
-        }
-        if (!subSelected.isEmpty()) {
-            settings.getSubjectDataSet().clearSelection();
-            settings.getSubjectDataSet().addSelected(subSelected);
-        }
-
-        // zoom/center on selection
-        AutoScaleAction.zoomTo(getAllSelectedPrimitives());
+        //clear current selection and add list-selected primitives, handling both
+        //same and different reference/subject layers
+        settings.getReferenceDataSet().clearSelection();
+        settings.getSubjectDataSet().clearSelection();
+        settings.getReferenceDataSet().addSelected(refSelected);
+        settings.getSubjectDataSet().addSelected(subSelected);
     }
 
     class DoubleClickHandler extends MouseAdapter {
@@ -262,7 +256,9 @@ public class ConflationToggleDialog extends ToggleDialog
             if (e.getClickCount() < 2 || !SwingUtilities.isLeftMouseButton(e))
                 return;
 
-            selectAndZoomToTableSelection();
+            selectAllListSelectedPrimitives();
+            // zoom/center on selection
+            AutoScaleAction.zoomTo(getAllSelectedPrimitives());
         }
     }
 
@@ -637,7 +633,7 @@ public class ConflationToggleDialog extends ToggleDialog
      */
     class ZoomToListSelectionAction extends JosmAction implements ListSelectionListener{
         public ZoomToListSelectionAction() {
-            super(tr("Zoom to selection"), "dialogs/autoscale/selection", tr("Zoom to selected element(s)"),
+            super(tr("Zoom to selected primitive(s)"), "dialogs/autoscale/selection", tr("Zoom to selected primitive(s)"),
                     null, false);
         }
 
@@ -662,7 +658,36 @@ public class ConflationToggleDialog extends ToggleDialog
             updateEnabledState();
         }
     }
-    
+
+    /**
+     * The action for selecting the primitives which are currently selected in
+     * the list (either matches or single primitives).
+     *
+     */
+    class SelectListSelectionAction extends JosmAction implements ListSelectionListener{
+        public SelectListSelectionAction() {
+            super(tr("Select selected primitive(s)"), "dialogs/select", tr("Select the primitives currently selected in the list"),
+                    null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (matchTable == null)
+                return;
+            selectAllListSelectedPrimitives();
+        }
+
+        @Override
+        public void updateEnabledState() {
+            setEnabled(!getAllSelectedPrimitives().isEmpty());
+        }
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            updateEnabledState();
+        }
+    }
+
     /**
      * The popup menu launcher
      */
@@ -699,6 +724,12 @@ public class ConflationToggleDialog extends ToggleDialog
             subjectOnlyList.addListSelectionListener(zoomToListSelectionAction);
             referenceOnlyList.addListSelectionListener(zoomToListSelectionAction);
             add(zoomToListSelectionAction);
+
+            SelectListSelectionAction selectListSelectionAction = new SelectListSelectionAction();
+            matchTable.getSelectionModel().addListSelectionListener(selectListSelectionAction);
+            subjectOnlyList.addListSelectionListener(selectListSelectionAction);
+            referenceOnlyList.addListSelectionListener(selectListSelectionAction);
+            add(selectListSelectionAction);
         }
     }
 
