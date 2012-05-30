@@ -1,9 +1,7 @@
 // License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
-import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
@@ -12,7 +10,6 @@ import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.osm.*;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.tools.GBC;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 /**
@@ -32,7 +29,7 @@ public class SettingsDialog extends ExtendedDialog {
     private JLabel subjectLayerLabel;
     private JPanel subjectPanel;
     private JLabel subjectSelectionLabel;
-    private JComboBox matchFinderComboBox;
+    private MatchFinderPanel matchFinderPanel;
     
     List<OsmPrimitive> subjectSelection = null;
     List<OsmPrimitive> referenceSelection = null;
@@ -40,7 +37,6 @@ public class SettingsDialog extends ExtendedDialog {
     DataSet subjectDataSet;
     OsmDataLayer subjectLayer;
     DataSet referenceDataSet;
-    String matchFinderMethod;
 
     public SettingsDialog() {
         super(Main.parent,
@@ -96,22 +92,8 @@ public class SettingsDialog extends ExtendedDialog {
         subjectPanel.add(jPanel5);
         pnl.add(subjectPanel);
 
-        JPanel optionsPanel = new JPanel();
-        optionsPanel.setBorder(BorderFactory.createTitledBorder(tr("Settings")));
-        optionsPanel.setLayout(new BoxLayout(optionsPanel, BoxLayout.PAGE_AXIS));
-        String[] matchFinderStrings = {"DisambiguatingFCMatchFinder", "OneToOneFCMatchFinder" };
-        matchFinderComboBox = new JComboBox(matchFinderStrings);
-        matchFinderComboBox.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                matchFinderMethod = (String)matchFinderComboBox.getSelectedItem();
-            }
-        });
-        matchFinderComboBox.setSelectedIndex(0);
-        optionsPanel.add(new JLabel(tr("Match finder method")));
-        optionsPanel.add(matchFinderComboBox);
-        pnl.add(optionsPanel);
+        matchFinderPanel = new MatchFinderPanel();
+        pnl.add(matchFinderPanel);
 
         setContent(pnl);
         setupDialog();
@@ -146,24 +128,24 @@ public class SettingsDialog extends ExtendedDialog {
         settings.setSubjectDataSet(subjectDataSet);
         settings.setSubjectLayer(subjectLayer);
         settings.setSubjectSelection(subjectSelection);
-        settings.setMatchFinderMethod(matchFinderMethod);
+        settings.setMatchFinder(matchFinderPanel.getMatchFinder());
         
         return settings;
     }
 
-    /**
-     * @param settings the settings to set
-     */
-    public void setSettings(SimpleMatchSettings settings) {
-        referenceDataSet = settings.getReferenceDataSet();
-        referenceLayer = settings.getReferenceLayer();
-        referenceSelection = settings.getReferenceSelection();
-        subjectDataSet = settings.getSubjectDataSet();
-        subjectLayer = settings.getSubjectLayer();
-        subjectSelection = settings.getSubjectSelection();
-        matchFinderMethod = settings.getMatchFinderMethod();
-        update();
-    }
+//    /**
+//     * @param settings the settings to set
+//     */
+//    public void setSettings(SimpleMatchSettings settings) {
+//        referenceDataSet = settings.getReferenceDataSet();
+//        referenceLayer = settings.getReferenceLayer();
+//        referenceSelection = settings.getReferenceSelection();
+//        subjectDataSet = settings.getSubjectDataSet();
+//        subjectLayer = settings.getSubjectLayer();
+//        subjectSelection = settings.getSubjectSelection();
+//        update();
+//        //matchFinderPanel.matchFinder = settings.getMatchFinder();
+//    }
 
     class RestoreSubjectAction extends JosmAction {
 
@@ -298,6 +280,6 @@ public class SettingsDialog extends ExtendedDialog {
             referenceSelectionLabel.setText(String.format("Rel.: %d / Ways: %d / Nodes: %d", numRelations, numWays, numNodes));
         }
 
-        matchFinderComboBox.setSelectedItem(matchFinderMethod);
+        //FIXME: properly update match finder settings
     }
 }

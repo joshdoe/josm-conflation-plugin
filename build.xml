@@ -25,6 +25,9 @@
             <pathelement location="${josm.jar}" />
             <pathelement location="${jts.plugin.jar}"/>
             <pathelement location="${utilsplugin2.plugin.jar}"/>
+            <fileset dir="lib">
+                <include name="**/*.jar"/>
+            </fileset>
         </path>
 		
         <mkdir dir="${plugin.build.dir}" />
@@ -59,6 +62,7 @@
                 <include name="README.*" />
                 <include name="LICENSE.*" />
             </fileset>
+            <zipfileset src="lib/miglayout-4.0-swing.jar"/>
         </copy>
 
         <jar destfile="${plugin.jar}" basedir="${plugin.build.dir}">

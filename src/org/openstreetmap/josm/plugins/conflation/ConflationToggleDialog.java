@@ -1,15 +1,14 @@
 // License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
-import com.vividsolutions.jcs.conflate.polygonmatch.*;
-import com.vividsolutions.jts.geom.Envelope;
+import com.vividsolutions.jcs.conflate.polygonmatch.FCMatchFinder;
+import com.vividsolutions.jcs.conflate.polygonmatch.Matches;
 import com.vividsolutions.jump.feature.*;
 import com.vividsolutions.jump.task.TaskMonitor;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.Rectangle;
 import java.awt.event.*;
-import java.awt.geom.Point2D;
 import java.util.*;
 import javax.swing.*;
 import javax.swing.event.*;
@@ -30,6 +29,7 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.plugins.conflation.ConflateMatchCommand.UserCancelException;
+import org.openstreetmap.josm.plugins.jts.JTSConverter;
 import org.openstreetmap.josm.plugins.utilsplugin2.replacegeometry.ReplaceGeometryException;
 import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -798,8 +798,10 @@ public class ConflationToggleDialog extends ToggleDialog
     
     private FeatureCollection createFeatureCollection(Collection<OsmPrimitive> prims) {
         FeatureDataset dataset = new FeatureDataset(createSchema(prims));
+        //TODO: use factory instead of passing converter
+        JTSConverter converter = new JTSConverter(true);
         for (OsmPrimitive prim : prims) {
-            dataset.add(new OsmFeature(prim));
+            dataset.add(new OsmFeature(prim, converter));
         }
         return dataset;
     }
@@ -855,30 +857,19 @@ public class ConflationToggleDialog extends ToggleDialog
                 subColl.add(osmFeature);
         }
         
+        //TODO: pass to MatchFinderPanel to use as hint/default for DistanceMatchers
         // get maximum possible distance so scores can be scaled (FIXME: not quite accurate)
-        Envelope envelope = refColl.getEnvelope();
-        envelope.expandToInclude(subColl.getEnvelope());
-        double maxDistance = Point2D.distance(
-            envelope.getMinX(),
-            envelope.getMinY(),
-            envelope.getMaxX(),
-            envelope.getMaxY());
+//        Envelope envelope = refColl.getEnvelope();
+//        envelope.expandToInclude(subColl.getEnvelope());
+//        double maxDistance = Point2D.distance(
+//            envelope.getMinX(),
+//            envelope.getMinY(),
+//            envelope.getMaxX(),
+//            envelope.getMaxY());
         
         // build matcher
-        CentroidDistanceMatcher centroid = new CentroidDistanceMatcher();
-        centroid.setMaxDistance(maxDistance);
-        IdenticalFeatureFilter identical = new IdenticalFeatureFilter();
-        FeatureMatcher[] matchers = {centroid, identical};
-        ChainMatcher chain = new ChainMatcher(matchers);
-        BasicFCMatchFinder basicFinder = new BasicFCMatchFinder(chain);
-        FCMatchFinder finder;
-        // FIXME: use better method of specifying match finder
-        if (settings.getMatchFinderMethod().equals("DisambiguatingFCMatchFinder"))
-            finder = new DisambiguatingFCMatchFinder(basicFinder);
-        else if (settings.getMatchFinderMethod().equals("OneToOneFCMatchFinder"))
-            finder = new OneToOneFCMatchFinder(basicFinder);
-        else
-            finder = new DisambiguatingFCMatchFinder(basicFinder);
+        FCMatchFinder finder = settings.getMatchFinder();
+
         // FIXME: ignore/filter duplicate objects (i.e. same object in both sets)
         // FIXME: fix match functions to work on point/linestring features as well
         // find matches

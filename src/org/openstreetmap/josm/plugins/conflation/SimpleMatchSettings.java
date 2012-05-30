@@ -1,6 +1,7 @@
 // License: GPL. See LICENSE file for details. Copyright 2012 by Josh Doe and others.
 package org.openstreetmap.josm.plugins.conflation;
 
+import com.vividsolutions.jcs.conflate.polygonmatch.FCMatchFinder;
 import java.util.List;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -17,7 +18,7 @@ public class SimpleMatchSettings {
     private DataSet subjectDataSet;
     private OsmDataLayer subjectLayer;
     private DataSet referenceDataSet;
-    private String matchFinderMethod;
+    private FCMatchFinder matchFinder;
 
     /**
      * @return the subjectSelection
@@ -104,16 +105,16 @@ public class SimpleMatchSettings {
     }
 
     /**
-     * @return the matchFinderMethod
+     * @return the matchFinder
      */
-    public String getMatchFinderMethod() {
-        return matchFinderMethod;
+    public FCMatchFinder getMatchFinder() {
+        return matchFinder;
     }
 
     /**
-     * @param matchFinderMethod the matchFinderMethod to set
+     * @param matchFinder the matchFinder to set
      */
-    public void setMatchFinderMethod(String matchFinderMethod) {
-        this.matchFinderMethod = matchFinderMethod;
+    public void setMatchFinder(FCMatchFinder matchFinder) {
+        this.matchFinder = matchFinder;
     }
 }

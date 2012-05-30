@@ -6,18 +6,19 @@ import com.vividsolutions.jump.feature.AttributeType;
 import com.vividsolutions.jump.feature.FeatureSchema;
 import java.util.Map;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.plugins.jts.JTSUtils;
+import org.openstreetmap.josm.plugins.jts.JTSConverter;
 
 public class OsmFeature extends AbstractBasicFeature {
     private Object[] attributes;
     private OsmPrimitive primitive;
-    
+    private JTSConverter converter;
+
     /**
      * Create a copy of the OSM geometry
      * TODO: update from underlying primitive
      * @param prim 
      */
-    public OsmFeature(OsmPrimitive prim) {
+    public OsmFeature(OsmPrimitive prim, JTSConverter jtsConverter) {
         super(new FeatureSchema());
         primitive = prim;
         Map<String, String> keys = prim.getKeys();
@@ -27,8 +28,11 @@ public class OsmFeature extends AbstractBasicFeature {
             getSchema().addAttribute(key, AttributeType.STRING);
             setAttribute(key, keys.get(key));
         }
-        JTSUtils conversion = new JTSUtils();
-        setGeometry(conversion.convert(prim));
+        if (jtsConverter != null)
+            converter = jtsConverter;
+        else
+            converter = new JTSConverter(true);
+        setGeometry(converter.convert(prim));
     }
 
     @Override

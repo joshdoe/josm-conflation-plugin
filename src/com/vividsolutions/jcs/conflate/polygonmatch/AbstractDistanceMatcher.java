@@ -11,7 +11,7 @@ public abstract class AbstractDistanceMatcher extends IndependentCandidateMatche
     public double match(Geometry target, Geometry candidate) {
         double distance = distance(target, candidate);
         if (maxDistance > 0) {
-            return 1 - (distance / maxDistance); // FIXME: allow negative scores?
+            return Math.max(0, 1 - (distance / maxDistance));
         } else {
             return 1
                     - (distance
