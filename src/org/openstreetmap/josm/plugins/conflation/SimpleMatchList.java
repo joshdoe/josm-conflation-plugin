@@ -133,7 +133,7 @@ public class SimpleMatchList implements Iterable<SimpleMatch> {
         boolean ret = matches.removeAll(matchesToRemove);
         if (selected.removeAll(matchesToRemove)) {
         
-            if (selected.isEmpty())
+            if (selected.isEmpty() && next != null)
                 selected.add(next);
 
             fireSelectionChanged();
