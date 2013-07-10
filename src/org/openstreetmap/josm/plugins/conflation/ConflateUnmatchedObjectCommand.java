@@ -31,7 +31,7 @@ public class ConflateUnmatchedObjectCommand extends Command {
 
         List<PrimitiveData> newObjects = ConflationUtils.copyObjects(sourceDataLayer.data, unmatchedObjects);
 
-        addPrimitivesCommand = new AddPrimitivesCommand(newObjects, targetDataLayer);
+        addPrimitivesCommand = new AddPrimitivesCommand(newObjects, newObjects, targetDataLayer);
     }
 
     @Override
