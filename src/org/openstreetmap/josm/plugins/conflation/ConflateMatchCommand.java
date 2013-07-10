@@ -39,7 +39,7 @@ public class ConflateMatchCommand extends Command {
             List<PrimitiveData> newObjects = ConflationUtils.copyObjects(sourceDataSet, match.getReferenceObject());
 
             // FIXME: bad form to execute command in constructor, how to fix?
-            addPrimitivesCommand = new AddPrimitivesCommand(newObjects, settings.getSubjectLayer());
+            addPrimitivesCommand = new AddPrimitivesCommand(newObjects, newObjects, settings.getSubjectLayer());
             if (!addPrimitivesCommand.executeCommand())
                 throw new AssertionError();
         }
