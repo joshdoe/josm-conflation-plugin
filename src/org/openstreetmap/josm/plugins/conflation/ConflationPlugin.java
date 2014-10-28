@@ -21,8 +21,6 @@ public class ConflationPlugin extends Plugin {
     public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {
         if (oldFrame == null && newFrame != null) {
             if (dialog == null) {
-//                Shortcut shortcut = null; Shortcut.registerShortcut("Conflation", tr("Toggle: {0}", tr("Open Conflation")),
-//                        KeyEvent.VK_0, Shortcut.ALT_SHIFT);
                 dialog = new ConflationToggleDialog(this);
             }
             newFrame.addToggleDialog(dialog);
